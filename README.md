@@ -68,11 +68,3 @@ consensus-engine view-discussion 1 --debug
 ```
 
 Then open http://localhost:7860 (or your specified port) in your browser.
-
-## Features
-
-- Multi-LLM consensus building
-- Support for OpenAI and Anthropic models
-- CLI and web interface options
-- Persistent storage of discussions
-- Real-time deliberation visualization
