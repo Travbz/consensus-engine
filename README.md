@@ -28,7 +28,7 @@ cd consensus-engine
 
 python3 -m venv venv
 
-source venv/bin/activate
+source venv/bin/activate  # windows: venv\Scripts\activate
 
 pip install -e .
 
