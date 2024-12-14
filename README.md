@@ -31,6 +31,9 @@ python3 -m venv venv
 source venv/bin/activate
 
 pip install -e .
+
+consensus-engine-init
+
 ```
 
 ## Usage
@@ -48,27 +51,22 @@ export ANTHROPIC_API_KEY="your-key-here"
 
 # Run the CLI
 consensus-engine discuss
-```
 
-### Web Interface (Gradio)
-```bash
-# Run the web interface
-consensus-web
+# Launch web interface
+consensus-engine --web --port 8080
 
-# Or with custom port
-consensus-web --port 8080
+# List past discussions
+consensus-engine --list
 
-# Or with specific host
-consensus-web --host 0.0.0.0 --port 8080
+# View specific discussion
+consensus-engine --view 1
 
-# For CLI with debug output
-consensus-engine discuss --debug
+# Start CLI discussion
+consensus-engine --cli
 
-# For web interface
-consensus-engine web --port 8080 --debug
+# Default to CLI mode if no flags
+consensus-engine
 
-# To view a past discussion
-consensus-engine view-discussion 1 --debug
 
 ```
 

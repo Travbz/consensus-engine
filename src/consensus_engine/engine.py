@@ -12,6 +12,7 @@ from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from .config.settings import MAX_ITERATIONS, CONSENSUS_THRESHOLD
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -19,22 +20,54 @@ class ConsensusEngine:
     def __init__(self, llms: List[BaseLLM], db_session: Session):
         self.llms = llms
         self.db = db_session
+        self.nltk_enabled = self._setup_nltk()
+
+    def _setup_nltk(self) -> bool:
+        """Set up NLTK resources with proper error handling."""
         try:
-            nltk.download('punkt', quiet=True)
-            nltk.download('stopwords', quiet=True)
-        except:
-            logger.warning("NLTK data download failed, falling back to simpler consensus check")
+            nltk_data_dir = os.path.join(os.path.expanduser("~"), "nltk_data")
+            os.makedirs(nltk_data_dir, exist_ok=True)
+            
+            for resource in ['punkt', 'stopwords']:
+                try:
+                    nltk.data.find(f'tokenizers/{resource}')
+                except LookupError:
+                    logger.info(f"Downloading NLTK resource: {resource}")
+                    nltk.download(resource, quiet=True, download_dir=nltk_data_dir)
+            
+            logger.info("NLTK setup completed successfully")
+            return True
+            
+        except Exception as e:
+            logger.warning(f"NLTK setup failed: {str(e)}. Falling back to basic text analysis.")
+            return False
 
     def _calculate_similarity(self, responses: Dict[str, str]) -> float:
-        """Calculate semantic similarity between responses using TF-IDF and cosine similarity."""
+        """Calculate semantic similarity between responses."""
         try:
+            if not responses:
+                return 0.0
+                
             texts = list(responses.values())
-            vectorizer = TfidfVectorizer(stop_words='english')
-            tfidf_matrix = vectorizer.fit_transform(texts)
-            similarities = cosine_similarity(tfidf_matrix)
-            avg_similarity = (similarities.sum() - len(texts)) / (len(texts) * (len(texts) - 1))
-            logger.debug(f"Average similarity score: {avg_similarity:.3f}")
-            return avg_similarity
+            cleaned_texts = [text.lower().strip() for text in texts]
+            
+            vectorizer = TfidfVectorizer(
+                stop_words='english' if self.nltk_enabled else None,
+                max_features=1000
+            )
+            
+            try:
+                tfidf_matrix = vectorizer.fit_transform(cleaned_texts)
+                similarities = cosine_similarity(tfidf_matrix)
+                avg_similarity = (similarities.sum() - len(texts)) / (len(texts) * (len(texts) - 1)) if len(texts) > 1 else 1.0
+                return float(avg_similarity)
+                
+            except Exception as vec_error:
+                logger.warning(f"Error in vectorization: {vec_error}. Using fallback similarity method.")
+                common_words = set.intersection(*[set(text.split()) for text in cleaned_texts])
+                total_words = max(len(set.union(*[set(text.split()) for text in cleaned_texts])), 1)
+                return len(common_words) / total_words
+                
         except Exception as e:
             logger.warning(f"Error calculating similarity: {e}")
             return 0.0
@@ -42,42 +75,32 @@ class ConsensusEngine:
     def _extract_key_points(self, response: str) -> str:
         """Extract main points from a response."""
         try:
-            sentences = sent_tokenize(response)[:3]  # Get first three sentences
-            return ' '.join(sentences)
+            if self.nltk_enabled:
+                sentences = sent_tokenize(response)
+                return ' '.join(sentences[:3])
+            else:
+                sentences = [s.strip() for s in response.split('.') if s.strip()]
+                return '. '.join(sentences[:3]) + ('.' if sentences else '')
+                
         except Exception as e:
             logger.warning(f"Error extracting key points: {e}")
-            return response[:200] + "..."  # Fallback to simple truncation
+            return response[:200] + "..."
 
     def _identify_key_differences(self, responses: Dict[str, str]) -> str:
         """Identify main points of disagreement between responses."""
-        try:
-            differences = []
-            for name1, response1 in responses.items():
-                for name2, response2 in responses.items():
-                    if name1 < name2:  # Avoid comparing same pairs twice
-                        similarity = self._calculate_pairwise_similarity(response1, response2)
-                        if similarity < CONSENSUS_THRESHOLD:
-                            key_points1 = self._extract_key_points(response1)
-                            key_points2 = self._extract_key_points(response2)
-                            differences.append(f"{name1} vs {name2} (similarity: {similarity:.2f}):")
-                            differences.append(f"- {name1}: {key_points1}")
-                            differences.append(f"- {name2}: {key_points2}\n")
-            
-            return "\n".join(differences) if differences else "Models are fairly aligned but haven't reached consensus threshold."
-        except Exception as e:
-            logger.warning(f"Error identifying differences: {e}")
-            return "Could not analyze differences in detail."
-
-    def _calculate_pairwise_similarity(self, text1: str, text2: str) -> float:
-        """Calculate similarity between two texts."""
-        try:
-            vectorizer = TfidfVectorizer(stop_words='english')
-            tfidf_matrix = vectorizer.fit_transform([text1, text2])
-            similarity = cosine_similarity(tfidf_matrix)[0][1]
-            return similarity
-        except Exception as e:
-            logger.warning(f"Error calculating pairwise similarity: {e}")
-            return 0.0
+        differences = []
+        for name1, response1 in responses.items():
+            for name2, response2 in responses.items():
+                if name1 < name2:
+                    similarity = self._calculate_similarity({name1: response1, name2: response2})
+                    if similarity < CONSENSUS_THRESHOLD:
+                        key_points1 = self._extract_key_points(response1)
+                        key_points2 = self._extract_key_points(response2)
+                        differences.append(f"{name1} vs {name2} (similarity: {similarity:.2f}):")
+                        differences.append(f"- {name1}: {key_points1}")
+                        differences.append(f"- {name2}: {key_points2}\n")
+        
+        return "\n".join(differences) if differences else "Models are fairly aligned but haven't reached consensus threshold."
 
     def _check_consensus(self, responses: Dict[str, str]) -> bool:
         """Check if consensus has been reached."""
@@ -94,20 +117,17 @@ class ConsensusEngine:
         try:
             synthesis_prompt = (
                 "The following responses have reached consensus. "
-                "Please create a unified response that captures all key points and shared understanding "
-                "in a clear and concise way:\n\n"
+                "Please create a unified response that captures all key points and shared understanding:\n\n"
             )
             
             for llm_name, response in responses.items():
                 synthesis_prompt += f"{llm_name}:\n{response}\n\n"
             
-            logger.info("Creating unified consensus response...")
             unified_response = await self.llms[0].generate_response(synthesis_prompt)
             return unified_response
             
         except Exception as e:
             logger.warning(f"Error creating unified response: {e}")
-            # Fallback: Concatenate responses with headers
             unified = "Consensus Reached - Combined Responses:\n\n"
             for llm_name, response in responses.items():
                 unified += f"From {llm_name}:\n{response}\n\n"
@@ -120,6 +140,11 @@ class ConsensusEngine:
         Args:
             prompt: The initial prompt/question
             progress_callback: Optional callback for progress updates
+            
+        Returns:
+            Dict containing either:
+            - {"consensus": str} if consensus is reached
+            - {llm_name: response} for each LLM if no consensus
         """
         async def update_progress(msg: str):
             if progress_callback:
@@ -193,14 +218,12 @@ class ConsensusEngine:
                 self.db.add(current_round)
                 self.db.commit()
                 
-                # Show key differences being discussed
                 differences = self._identify_key_differences(responses)
                 await update_progress(f"\nMain points of discussion:\n{differences}\n")
                 
-                # Get new responses
                 new_responses = {}
                 for llm in self.llms:
-                    await update_progress(f"💭 Getting {llm.name}'s thoughts on the discussion...")
+                    await update_progress(f"💭 Getting {llm.name}'s thoughts...")
                     deliberation = await llm.deliberate(prompt, responses)
                     new_responses[llm.name] = deliberation
                     llm_response = LLMResponse(
@@ -225,30 +248,3 @@ class ConsensusEngine:
             discussion.completed_at = datetime.utcnow()
             self.db.commit()
             raise e
-
-    async def load_discussion(self, discussion_id: int) -> Optional[Dict[str, List[Dict[str, str]]]]:
-        """Load a previous discussion from the database."""
-        discussion = self.db.query(Discussion).get(discussion_id)
-        if not discussion:
-            return None
-            
-        result = {
-            'prompt': discussion.prompt,
-            'consensus_reached': bool(discussion.consensus_reached),
-            'final_consensus': discussion.final_consensus,
-            'rounds': []
-        }
-        
-        for round in discussion.rounds:
-            round_responses = {
-                'round_number': round.round_number,
-                'responses': []
-            }
-            for response in round.responses:
-                round_responses['responses'].append({
-                    'llm_name': response.llm_name,
-                    'response': response.response_text
-                })
-            result['rounds'].append(round_responses)
-            
-        return result

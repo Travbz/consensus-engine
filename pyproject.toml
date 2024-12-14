@@ -27,8 +27,8 @@ dependencies = [
 ]
 
 [project.scripts]
-consensus-engine = "consensus_engine.cli:cli"
-consensus-web = "consensus_engine.web:main"
+consensus-engine = "consensus_engine.cli:main"
+consensus-engine-init = "consensus_engine.init:initialize"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/consensus_engine"]
