@@ -34,10 +34,10 @@ pip install -e .
 ```
 
 ## Usage
-navigate to consensus-engine/src/consensus_engine/config/settings.py and set your API keys
-Update system prompts to your liking
-Modify token usage limits to your liking
-Modify deliberation parameters to your liking
+* navigate to consensus-engine/src/consensus_engine/config/settings.py and set your API keys
+* Update system prompts to your liking
+* Modify token usage limits to your liking
+* Modify deliberation parameters to your liking
 
 
 ### Command Line Interface
