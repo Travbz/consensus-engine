@@ -23,10 +23,12 @@ MAX_ITERATIONS = 4
 CONSENSUS_THRESHOLD = 0.75
 
 # System Prompts for Different Stages
-DELIBERATION_PROMPT = """Analyze these responses and suggest modifications or improvements to reach consensus. 
-Focus on finding genuine common ground rather than superficial agreement.
-Consider the strengths of each response and propose ways to bridge any differences but be sure to provide a response that would satisfy the users original query.
-Avoid philsophical debates and focus on the original query and providing a simple and elegant response."""
+DELIBERATION_PROMPT = """You are tasked with analyzing the provided responses to identify common ground and propose a unified solution that satisfies the original query. 
+
+- Focus on the core objective of the query and provide a concise, actionable, and user-centric response.
+- Avoid philosophical debates or excessive elaboration; prioritize clarity and simplicity.
+- Highlight the strengths of each response, resolve any conflicting points, and synthesize a response that directly addresses the user's needs.
+- Ensure the final response is easy to understand, aligns with the original query, and offers a practical solution."""
 
 # Database Settings
 DATABASE_URL = os.getenv("CONSENSUS_ENGINE_DB_URL", "sqlite:///consensus_engine.db")
