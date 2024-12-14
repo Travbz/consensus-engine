@@ -1,0 +1,34 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "consensus-engine"
+version = "0.1.0"
+authors = [
+    { name = "Your Name", email = "your.email@example.com" },
+]
+description = "A consensus engine for orchestrating discussions between multiple LLMs"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "click>=8.0.0",
+    "openai>=1.0.0",
+    "anthropic>=0.5.0",
+    "asyncio>=3.4.3",
+    "sqlalchemy>=2.0.0",
+    "aiohttp>=3.8.0",
+    "python-dotenv>=0.19.0",
+    "nltk>=3.8.1",
+    "scikit-learn>=1.0.2",
+    "numpy>=1.21.0",
+    "gradio>=4.0.0",
+    "rich>=13.0.0"
+]
+
+[project.scripts]
+consensus-engine = "consensus_engine.cli:cli"
+consensus-web = "consensus_engine.web:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/consensus_engine"]
