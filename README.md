@@ -24,7 +24,11 @@ A tool for orchestrating discussions between multiple LLMs to reach consensus.
 ```bash
 git clone git@github.com:Travbz/consensus-engine.git
 
+cd consensus-engine
 
+python3 -m venv venv
+
+source venv/bin/activate
 
 pip install -e .
 ```
