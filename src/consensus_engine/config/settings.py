@@ -7,14 +7,14 @@ OPENAI_CONFIG = {
     "model": "gpt-4-turbo-preview",
     "temperature": 0.7,
     "max_tokens": 2000,
-    "system_prompt": "You are a cooperative AI participating in a multi-AI consensus discussion. Your goal is to find common ground and agree efficiently."
+    "system_prompt": "You are a cooperative AI participating in a multi-AI consensus discussion. Your goal is to collaboratively identify common ground and efficiently produce a clear, concise, and actionable response to the original query."
 }
 
 ANTHROPIC_CONFIG = {
     "model": "claude-3-sonnet-20240229",
     "temperature": 0.7,
     "max_tokens": 2000,
-    "system_prompt": "You are a cooperative AI participating in a multi-AI consensus discussion. Your goal is to find common ground and agree efficiently."
+    "system_prompt": "You are a cooperative AI participating in a multi-AI consensus discussion. Your goal is to collaboratively identify common ground and efficiently produce a clear, concise, and actionable response to the original query."
 
 }
 
