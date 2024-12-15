@@ -34,7 +34,7 @@ DELIBERATION_PROMPT = """You are tasked with analyzing the provided responses to
 DATABASE_URL = os.getenv("CONSENSUS_ENGINE_DB_URL", "sqlite:///consensus_engine.db")
 
 # Logging Settings
-LOG_LEVEL = os.getenv("CONSENSUS_ENGINE_LOG_LEVEL", "INFO")
+LOG_LEVEL = os.getenv("CONSENSUS_ENGINE_LOG_LEVEL", "ERROR")
 LOG_FORMAT = '%(message)s'
 DETAILED_LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
