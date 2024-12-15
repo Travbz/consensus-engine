@@ -6,42 +6,18 @@ import socket
 import logging
 import signal
 import sys
-import inspect
 from datetime import datetime
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, desc
 from sqlalchemy.orm import sessionmaker
+from difflib import SequenceMatcher
 from .engine import ConsensusEngine
 from .models.openai import OpenAILLM
 from .models.anthropic import AnthropicLLM
-from .database.models import Base, Discussion
+from .database.models import Base, Discussion, DiscussionRound
+from .config.round_config import ROUND_SEQUENCE, ROUND_CONFIGS
 
-# Configure logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
-
-class PortInUseError(Exception):
-    """Raised when a port is already in use."""
-    pass
-
-def is_port_available(host: str, port: int) -> bool:
-    """Check if a port is available on the specified host."""
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind((host, port))
-            return True
-    except OSError:
-        return False
-
-def find_available_port(host: str, start_port: int, max_attempts: int = 100) -> int:
-    """
-    Find an available port starting from start_port.
-    Will try ports in sequence until it finds an open one or reaches max_attempts.
-    """
-    for port_offset in range(max_attempts):
-        port = start_port + port_offset
-        if is_port_available(host, port):
-            return port
-    raise PortInUseError(f"Could not find an available port after {max_attempts} attempts")
 
 def get_db_session():
     """Initialize and return a database session."""
@@ -51,250 +27,294 @@ def get_db_session():
     Session = sessionmaker(bind=engine)
     return Session()
 
+def find_available_port(start_port: int, max_attempts: int = 100) -> int:
+    """Find an available port starting from start_port."""
+    for port in range(start_port, start_port + max_attempts):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('', port))
+                return port
+        except OSError:
+            continue
+    raise RuntimeError(f"Could not find an available port after {max_attempts} attempts")
+
 class GradioInterface:
     def __init__(self):
         self.openai_key = os.getenv("OPENAI_API_KEY")
         self.anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+        if not self.openai_key or not self.anthropic_key:
+            raise ValueError("Missing API keys. Please set OPENAI_API_KEY and ANTHROPIC_API_KEY environment variables.")
+        
         self.llms = [
             OpenAILLM(self.openai_key),
             AnthropicLLM(self.anthropic_key)
         ]
         self.db_session = get_db_session()
         self.engine = ConsensusEngine(self.llms, self.db_session)
-        self.interface = None
-        self.server_port = None
-        self._setup_signal_handlers()
 
-    def _setup_signal_handlers(self):
-        """Set up handlers for various signals."""
-        signal.signal(signal.SIGINT, self._signal_handler)
-        signal.signal(signal.SIGTERM, self._signal_handler)
-
-    def _signal_handler(self, signum, frame):
-        """Handle signals gracefully."""
-        logger.info(f"\nReceived signal {signum}. Cleaning up...")
-        if self.interface:
-            logger.info(f"Closing Gradio interface on port {self.server_port}")
-            try:
-                self.interface.close()
-                if self.server_port and not is_port_available("127.0.0.1", self.server_port):
-                    logger.warning(f"Port {self.server_port} might still be in use")
-            except Exception as e:
-                logger.error(f"Error during cleanup: {e}")
-        
-        if self.db_session:
-            logger.info("Closing database session")
-            self.db_session.close()
-        
-        logger.info("Cleanup completed")
-        sys.exit(0)
+        # Instagram-inspired colors using Gradio's theme system
+        self.theme = gr.Theme.from_hub("gradio/soft")
+        self.theme.font = gr.themes.GoogleFont("Inter")
+        self.theme.set(
+            background_fill_primary="#FFFFFF",
+            background_fill_secondary="#F8F9FA",
+            border_color_accent="#E4405F",
+            border_color_primary="#E4E4E4",
+            color_accent="#833AB4",
+            button_primary_background_fill="linear-gradient(45deg, #833AB4, #E1306C)",
+            button_primary_background_fill_hover="linear-gradient(45deg, #E1306C, #833AB4)",
+            button_primary_text_color="#FFFFFF",
+            button_secondary_background_fill="#FCAF45",
+            button_secondary_background_fill_hover="#FD1D1D",
+            button_secondary_text_color="#FFFFFF"
+        )
 
     def format_timestamp(self, timestamp):
-        """Format timestamp for display."""
-        if timestamp:
-            return timestamp.strftime("%Y-%m-%d %H:%M:%S")
-        return "N/A"
+        return timestamp.strftime("%Y-%m-%d %H:%M:%S") if timestamp else "N/A"
 
-    def _get_past_discussions(self):
-        """Retrieve past discussions from the database."""
+    def get_discussion_title(self, prompt: str) -> str:
+        """Generate a readable title for a discussion."""
+        if len(prompt) > 40:
+            title = prompt[:40].rsplit(' ', 1)[0] + "..."
+        else:
+            title = prompt
+        return title.strip()
+
+    def get_discussion_history(self):
+        """Get list of past discussions."""
+        discussions = self.db_session.query(Discussion).order_by(desc(Discussion.started_at)).all()
+        return [
+            {"label": self.get_discussion_title(d.prompt), "value": str(d.id)}
+            for d in discussions
+        ]
+
+    def load_discussion(self, selected):
+        """Load a past discussion's details."""
+        if not selected:
+            return "", ""
+        
         try:
-            discussions = self.db_session.query(Discussion).order_by(Discussion.started_at.desc()).all()
-            return [
-                {
-                    "id": disc.id,
-                    "label": f"#{disc.id}: {disc.prompt[:50]}... ({self.format_timestamp(disc.started_at)})",
-                    "prompt": disc.prompt,
-                    "started_at": disc.started_at,
-                    "completed_at": disc.completed_at,
-                    "consensus_reached": disc.consensus_reached,
-                    "final_consensus": disc.final_consensus
-                }
-                for disc in discussions
-            ]
-        except Exception as e:
-            logger.error(f"Error fetching discussions: {e}")
-            return []
-
-    def _get_discussion_details(self, discussion_id):
-        """Retrieve the details of a specific discussion."""
-        if not discussion_id:
-            return ""
-        try:
-            discussion = self.db_session.query(Discussion).get(discussion_id)
-            if not discussion:
-                return "Discussion not found."
-
-            # Format the discussion details
-            details = []
-            details.append("=" * 50)
-            details.append(f"Discussion #{discussion.id}")
-            details.append("=" * 50)
-            details.append(f"\n📅 Started: {self.format_timestamp(discussion.started_at)}")
-            details.append(f"📅 Completed: {self.format_timestamp(discussion.completed_at)}")
-            details.append(f"\n🎯 Original Prompt:\n{discussion.prompt}\n")
+            # Get discussion by ID, handling both string and dict inputs
+            disc_id = selected["value"] if isinstance(selected, dict) else str(selected)
+            discussion = self.db_session.query(Discussion).filter(Discussion.id == disc_id).first()
             
-            # Add round details
+            if not discussion:
+                return "", f"Discussion not found for ID: {disc_id}"
+
+            output = []
+            output.append(f"Original Prompt: {discussion.prompt}\n")
+            output.append(f"Started: {self.format_timestamp(discussion.started_at)}")
+            output.append(f"Status: {'Consensus Reached' if discussion.consensus_reached else 'No Consensus'}\n")
+
             for round in discussion.rounds:
-                details.append(f"\n📍 Round {round.round_number}:")
+                round_type = ROUND_SEQUENCE[round.round_number]
+                output.append(f"\n=== Round {round.round_number + 1}: {round_type} ===")
                 for response in round.responses:
-                    details.append(f"\n🤖 {response.llm_name}:\n{response.response_text}")
-                details.append("-" * 40)
+                    output.append(f"\n🤖 {response.llm_name} (Confidence: {response.confidence_score:.2f}):")
+                    output.append(response.response_text)
+                    output.append("-" * 40)
 
-            # Add consensus information
-            if discussion.consensus_reached:
-                details.append(f"\n✅ Consensus Reached!")
-                details.append(f"\n📝 Final Consensus:\n{discussion.final_consensus}")
-            else:
-                details.append("\n❌ No consensus reached")
+            if discussion.consensus_reached and discussion.final_consensus:
+                output.append("\n✨ Final Consensus:")
+                output.append(discussion.final_consensus)
 
-            return "\n".join(details)
+            return discussion.prompt, "\n".join(output)
+            
         except Exception as e:
-            logger.error(f"Error fetching discussion details: {e}")
-            return f"Error retrieving discussion details: {str(e)}"
+            logger.error(f"Error loading discussion: {e}")
+            return "", f"Error loading discussion: {str(e)}"
 
     async def _run_discussion(self, prompt):
         """Run a discussion using the consensus engine."""
         if not prompt.strip():
-            yield "Please enter a prompt to start the discussion."
-            return
+            return "Please enter a prompt to start the discussion."
 
         try:
-            yield "🚀 Starting consensus discussion...\n"
-            await asyncio.sleep(0.5)  # Small delay for readability
+            current_output = []
 
-            yield "🤖 OpenAI model thinking...\n"
-            await asyncio.sleep(0.5)
+            def progress_callback(msg: str):
+                nonlocal current_output
+                
+                if "Starting consensus discussion" in msg:
+                    current_output.append("\n🎲 Starting new discussion...")
+                    current_output.append(f"Query: {prompt}\n")
+                    current_output.append("=" * 50)
+                    
+                elif any(round_type in msg for round_type in ROUND_SEQUENCE):
+                    round_type = next(rt for rt in ROUND_SEQUENCE if rt in msg)
+                    config = ROUND_CONFIGS[round_type]
+                    current_output.append(f"\n\n🎲 Round: {round_type}")
+                    current_output.append(f"Stage: {config['name']}")
+                    current_output.append(f"Target confidence: {config['required_confidence']:.2f}")
+                    current_output.append("-" * 50)
+                    
+                elif "Getting" in msg and "'s response" in msg:
+                    llm_name = msg.split("Getting")[1].split("'s")[0].strip()
+                    current_output.append(f"\n> {llm_name} is thinking... 🤔")
+                    
+                elif "response\n" in msg and "confidence:" in msg:
+                    parts = msg.split("response\n")
+                    llm_name = parts[0].strip()
+                    response_content = parts[1].split("\nconfidence:")[0].strip()
+                    confidence = float(parts[1].split("confidence:")[1].strip())
+                    
+                    current_output.append(f"> {llm_name} responded:")
+                    current_output.append("-" * 30)
+                    current_output.append(response_content)
+                    current_output.append("-" * 30)
+                    current_output.append(f"Confidence: {confidence:.2f} ✓\n")
+                    
+                elif "Round" in msg and "results:" in msg:
+                    current_output.append(msg)
+                else:
+                    current_output.append(msg)
 
-            yield "🤖 Anthropic model thinking...\n"
-            await asyncio.sleep(0.5)
+                return "\n".join(current_output)
 
-            yield "🔄 Processing responses...\n"
-            result = await self.engine.discuss(prompt)
-
-            status = []
+            result = await self.engine.discuss(prompt, progress_callback)
+            
             if isinstance(result, dict) and "consensus" in result:
-                status.extend([
-                    "🎯 Discussion Complete!",
-                    "🤝 Consensus Reached!\n",
-                    f"📝 Final Consensus:\n{result['consensus']}\n",
-                    "Individual Responses:"
-                ])
-                for llm_name, response in result.get("individual_responses", {}).items():
-                    status.append(f"\n🤖 {llm_name}:\n{response}\n")
+                current_output.append("\n\n🏆 Consensus Reached!")
+                current_output.append("=" * 50)
+                current_output.append("\nFinal Consensus:")
+                current_output.append("-" * 50)
+                current_output.append(result["consensus"])
+                current_output.append("\nIndividual Final Positions:")
+                current_output.append("-" * 50)
+                for name, response in result["individual_responses"].items():
+                    current_output.append(f"\n{name}:")
+                    current_output.append(response)
             else:
-                status.extend([
-                    "⚠️ No consensus reached. Final responses:\n"
-                ])
-                for k, v in result.items():
-                    status.append(f"\n🤖 {k}:\n{v}\n")
+                current_output.append("\n\n❌ No Consensus Reached")
+                current_output.append("=" * 50)
+                
+                # Extract and compare final positions
+                positions = {}
+                for name, response in result.items():
+                    if "FINAL_POSITION:" in response:
+                        position = response.split("FINAL_POSITION:")[1].split("IMPLEMENTATION:")[0].strip()
+                        positions[name] = position
 
-            yield "\n".join(status)
+                if len(positions) >= 2:
+                    similarity = SequenceMatcher(None, 
+                        positions[list(positions.keys())[0]], 
+                        positions[list(positions.keys())[1]]
+                    ).ratio()
+                    current_output.append(f"\nFinal position similarity: {similarity:.2%}")
+                    current_output.append(f"Required threshold: {self.engine.consensus_threshold:.2%}")
+                    if similarity >= self.engine.consensus_threshold:
+                        current_output.append("\nNote: Final positions appear to agree, but full responses differ.")
+                
+                current_output.append("\nFinal Positions:")
+                current_output.append("-" * 50)
+                for name, response in result.items():
+                    current_output.append(f"\n{name}:")
+                    current_output.append(response)
+
+            return "\n".join(current_output)
 
         except Exception as e:
-            logger.error(f"Error in run_discussion: {str(e)}", exc_info=True)
-            yield f"Error running discussion: {str(e)}"
+            logger.error(f"Error during discussion: {e}", exc_info=True)
+            return f"Error during discussion: {str(e)}"
+
+    def create_interface(self):
+        """Create the Gradio interface."""
+        interface = gr.Blocks(title="LLM Consensus Engine", theme=self.theme)
+        
+        with interface:
+            gr.Markdown("""
+            # LLM Consensus Engine
+            Facilitating structured discussions between multiple language models.
+            """)
+            
+            with gr.Row():
+                # Left column for history
+                with gr.Column(scale=1):
+                    history_dropdown = gr.Dropdown(
+                        label="Previous Discussions",
+                        choices=self.get_discussion_history(),
+                        interactive=True,
+                        value=None,
+                        container=False
+                    )
+                    refresh_btn = gr.Button("🔄 Refresh History", size="sm")
+
+                # Right column for main content
+                with gr.Column(scale=3):
+                    prompt_input = gr.Textbox(
+                        label="Enter your prompt",
+                        placeholder="What would you like the LLMs to discuss?",
+                        lines=3
+                    )
+                    with gr.Row():
+                        submit_btn = gr.Button("Start Discussion", variant="primary")
+                        clear_btn = gr.Button("Clear", variant="secondary")
+
+            output_box = gr.Textbox(
+                label="Discussion Progress",
+                lines=25,
+                show_copy_button=True,
+                interactive=False
+            )
+
+            def clear_outputs():
+                return ["", ""]
+
+            def refresh_history():
+                new_choices = self.get_discussion_history()
+                return gr.Dropdown(choices=new_choices)
+
+            # Event handlers
+            history_dropdown.change(
+                fn=self.load_discussion,
+                inputs=[history_dropdown],
+                outputs=[prompt_input, output_box]
+            )
+
+            refresh_btn.click(
+                fn=refresh_history,
+                outputs=[history_dropdown]
+            )
+
+            submit_btn.click(
+                fn=self._run_discussion,
+                inputs=[prompt_input],
+                outputs=[output_box]
+            )
+
+            clear_btn.click(
+                fn=clear_outputs,
+                outputs=[prompt_input, output_box]
+            )
+
+        return interface
 
     def launch(self, host=None, port=None, debug=False):
-        """Launch the Gradio interface with port retry logic."""
-        host = host if host else "127.0.0.1"
-        start_port = port if port else 7860
-        
+        """Launch the Gradio interface."""
         try:
-            actual_port = find_available_port(host, start_port)
-            self.server_port = actual_port
+            host = host if host else "127.0.0.1"
+            start_port = port if port else 7866
             
-            if actual_port != start_port:
-                logger.info(f"Port {start_port} was in use, using port {actual_port} instead")
-                print(f"Port {start_port} was in use, starting server on port {actual_port} instead")
-
-            with gr.Blocks(title="LLM Consensus Engine") as interface:
-                gr.Markdown("""
-                # LLM Consensus Engine
-                This tool facilitates discussions between multiple language models to reach consensus on various topics.
-                """)
-                
-                with gr.Row():
-                    with gr.Column(scale=1):
-                        history_list = gr.Dropdown(
-                            label="Past Discussions",
-                            choices=[d["label"] for d in self._get_past_discussions()],
-                            value=None,
-                            interactive=True,
-                            container=False
-                        )
-                        
-                        refresh_btn = gr.Button("🔄 Refresh History", size="sm")
-                    
-                    with gr.Column(scale=4):
-                        prompt_input = gr.Textbox(
-                            label="Enter your prompt",
-                            placeholder="What would you like the LLMs to discuss?",
-                            lines=3
-                        )
-                        with gr.Row():
-                            submit_btn = gr.Button("Start Discussion", variant="primary")
-                            clear_btn = gr.Button("Clear", variant="secondary")
-
-                output_box = gr.Textbox(
-                    label="Discussion Output",
-                    lines=25,
-                    show_copy_button=True
-                )
-
-                # Event handlers
-                def clear_outputs():
-                    return ["", ""]
-                
-                def refresh_history():
-                    discussions = self._get_past_discussions()
-                    return gr.Dropdown(choices=[d["label"] for d in discussions])
-                
-                def on_history_select(selection):
-                    if not selection:
-                        return ""
-                    discussion_id = int(selection.split(":")[0][1:])
-                    return self._get_discussion_details(discussion_id)
-
-                refresh_btn.click(
-                    fn=refresh_history,
-                    outputs=[history_list]
-                )
-
-                history_list.change(
-                    fn=on_history_select,
-                    inputs=[history_list],
-                    outputs=[output_box]
-                )
-
-                submit_btn.click(
-                    fn=self._run_discussion,
-                    inputs=[prompt_input],
-                    outputs=[output_box]
-                )
-
-                clear_btn.click(
-                    fn=clear_outputs,
-                    outputs=[prompt_input, output_box]
-                )
-
-                self.interface = interface
-                
-                # Launch the interface
-                interface.launch(
-                    server_port=actual_port,
-                    share=False,
-                    inbrowser=True,
-                    server_name=host,
-                    debug=debug
-                )
+            try:
+                port = find_available_port(start_port)
+                logger.info(f"Found available port: {port}")
+            except RuntimeError as e:
+                logger.error(f"Port finding failed: {e}")
+                port = start_port  # Fall back to original port and let Gradio handle it
+            
+            interface = self.create_interface()
+            interface.launch(
+                server_port=port,
+                server_name=host,
+                debug=debug,
+                show_api=False,
+                share=False,
+                inbrowser=True
+            )
 
         except Exception as e:
-            error_msg = f"Failed to start web interface: {str(e)}"
-            logger.error(error_msg)
-            raise RuntimeError(error_msg)
-        finally:
-            if self.db_session:
-                self.db_session.close()
+            logger.error(f"Failed to start web interface: {e}", exc_info=True)
+            raise
 
 def main():
     """Main entry point for the web interface."""
@@ -302,9 +322,10 @@ def main():
         app = GradioInterface()
         app.launch()
     except KeyboardInterrupt:
-        logger.info("\nShutdown requested... cleaning up")
+        logger.info("\nShutdown requested... exiting")
+        sys.exit(0)
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+        logger.error(f"Error starting interface: {e}", exc_info=True)
         sys.exit(1)
 
 if __name__ == "__main__":

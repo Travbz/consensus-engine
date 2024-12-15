@@ -3,7 +3,7 @@ import os
 import logging
 from typing import Dict, Any
 
-# Model Settings
+# Model Settings, can add another model by adding a new key to the dictionary
 MODEL_CONFIGS = {
     "openai": {
         "enabled": True,
@@ -35,23 +35,9 @@ MODEL_CONFIGS = {
 CONSENSUS_SETTINGS = {
     "max_iterations": 4,
     "consensus_threshold": 0.75,
-    "min_models": 2,  # Minimum number of models required for consensus
-    "max_models": 5,  # Maximum number of models to use in a single discussion
+    "min_models": 2,
+    "max_models": 5,
 }
-
-# Deliberation Settings
-DELIBERATION_PROMPT = """You are tasked with analyzing the provided responses to identify common ground 
-and propose a unified solution that satisfies the original query. 
-
-- Focus on the core objective of the query and provide a concise, actionable, and user-centric response.
-- Avoid philosophical debates or excessive elaboration; prioritize clarity and simplicity.
-- Highlight the strengths of each response, resolve any conflicting points, and synthesize a response 
-  that directly addresses the user's needs.
-- Ensure the final response is easy to understand, aligns with the original query, and offers a 
-  practical solution."""
-
-# Database Settings
-DATABASE_URL = os.getenv("CONSENSUS_ENGINE_DB_URL", "sqlite:///consensus_engine.db")
 
 # Logging Settings
 LOG_LEVEL = os.getenv("CONSENSUS_ENGINE_LOG_LEVEL", "INFO")

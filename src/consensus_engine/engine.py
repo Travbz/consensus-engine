@@ -1,18 +1,20 @@
-"""Core consensus engine implementation."""
-from typing import List, Dict, Optional, Callable, Awaitable
+"""Core consensus engine implementation with rounds."""
+from typing import List, Dict, Optional, Callable, Awaitable, Any
 import asyncio
 from sqlalchemy.orm import Session
-from .models.base import BaseLLM
-from .database.models import Discussion, DiscussionRound, LLMResponse
 from datetime import datetime
 import logging
 import nltk
+import os
 from nltk.tokenize import sent_tokenize
-from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from .config.settings import CONSENSUS_SETTINGS, DELIBERATION_PROMPT
-import os
+from difflib import SequenceMatcher
+
+from .models.base import BaseLLM
+from .database.models import Discussion, DiscussionRound, LLMResponse
+from .config.settings import CONSENSUS_SETTINGS
+from .config.round_config import ROUND_CONFIGS, ROUND_PROMPTS, ROUND_SEQUENCE
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +23,10 @@ class ConsensusEngine:
         self.llms = llms
         self.db = db_session
         self.nltk_enabled = self._setup_nltk()
-        self.max_iterations = CONSENSUS_SETTINGS["max_iterations"]
         self.consensus_threshold = CONSENSUS_SETTINGS["consensus_threshold"]
 
     def _setup_nltk(self) -> bool:
-        """Set up NLTK resources with proper error handling."""
+        """Set up NLTK resources."""
         try:
             nltk_data_dir = os.path.join(os.path.expanduser("~"), "nltk_data")
             os.makedirs(nltk_data_dir, exist_ok=True)
@@ -34,219 +35,190 @@ class ConsensusEngine:
                 try:
                     nltk.data.find(f'tokenizers/{resource}')
                 except LookupError:
-                    logger.info(f"Downloading NLTK resource: {resource}")
                     nltk.download(resource, quiet=True, download_dir=nltk_data_dir)
             
-            logger.info("NLTK setup completed successfully")
             return True
-            
         except Exception as e:
-            logger.warning(f"NLTK setup failed: {str(e)}. Falling back to basic text analysis.")
+            logger.warning(f"NLTK setup failed: {e}")
             return False
 
     def _calculate_similarity(self, responses: Dict[str, str]) -> float:
         """Calculate semantic similarity between responses."""
-        try:
-            if not responses:
-                return 0.0
-                
+        if not responses:
+            return 0.0
+
+        def extract_final_position(text: str) -> str:
+            """Extract just the FINAL_POSITION section for comparison."""
+            try:
+                if "FINAL_POSITION:" in text:
+                    position = text.split("FINAL_POSITION:")[1].split("IMPLEMENTATION:")[0].strip()
+                    return position
+                return text  # Fall back to full text if section not found
+            except Exception:
+                return text
+
+        # For final round, compare only FINAL_POSITION sections
+        final_round = any("FINAL_POSITION:" in resp for resp in responses.values())
+        if final_round:
+            texts = [extract_final_position(resp) for resp in responses.values()]
+        else:
             texts = list(responses.values())
-            cleaned_texts = [text.lower().strip() for text in texts]
             
+        cleaned_texts = [text.lower().strip() for text in texts]
+        
+        try:
             vectorizer = TfidfVectorizer(
                 stop_words='english' if self.nltk_enabled else None,
                 max_features=1000
             )
             
-            try:
-                tfidf_matrix = vectorizer.fit_transform(cleaned_texts)
-                similarities = cosine_similarity(tfidf_matrix)
-                avg_similarity = (similarities.sum() - len(texts)) / (len(texts) * (len(texts) - 1)) if len(texts) > 1 else 1.0
-                return float(avg_similarity)
-                
-            except Exception as vec_error:
-                logger.warning(f"Error in vectorization: {vec_error}. Using fallback similarity method.")
+            tfidf_matrix = vectorizer.fit_transform(cleaned_texts)
+            similarities = cosine_similarity(tfidf_matrix)
+            return float(similarities.sum() - len(texts)) / (len(texts) * (len(texts) - 1)) if len(texts) > 1 else 1.0
+            
+        except Exception as e:
+            logger.warning(f"Error in vectorization: {e}")
+            # Fallback to simpler comparison
+            if final_round:
+                return SequenceMatcher(None, cleaned_texts[0], cleaned_texts[1]).ratio()
+            else:
                 common_words = set.intersection(*[set(text.split()) for text in cleaned_texts])
                 total_words = max(len(set.union(*[set(text.split()) for text in cleaned_texts])), 1)
                 return len(common_words) / total_words
-                
-        except Exception as e:
-            logger.warning(f"Error calculating similarity: {e}")
-            return 0.0
 
-    def _extract_key_points(self, response: str) -> str:
-        """Extract main points from a response."""
+    def _extract_confidence(self, text: str) -> float:
         try:
-            if self.nltk_enabled:
-                sentences = sent_tokenize(response)
-                return ' '.join(sentences[:3])
-            else:
-                sentences = [s.strip() for s in response.split('.') if s.strip()]
-                return '. '.join(sentences[:3]) + ('.' if sentences else '')
-                
+            import re
+            confidence_line = re.search(r"CONFIDENCE:\s*(\d*\.?\d+)", text, re.IGNORECASE)
+            if confidence_line:
+                confidence = float(confidence_line.group(1))
+                return confidence / 100 if confidence > 1 else confidence
         except Exception as e:
-            logger.warning(f"Error extracting key points: {e}")
-            return response[:200] + "..."
+            logger.warning(f"Error extracting confidence: {e}")
+        return 0.0
 
-    def _identify_key_differences(self, responses: Dict[str, str]) -> str:
-        """Identify main points of disagreement between responses."""
-        differences = []
-        for name1, response1 in responses.items():
-            for name2, response2 in responses.items():
-                if name1 < name2:
-                    similarity = self._calculate_similarity({name1: response1, name2: response2})
-                    if similarity < self.consensus_threshold:
-                        key_points1 = self._extract_key_points(response1)
-                        key_points2 = self._extract_key_points(response2)
-                        differences.append(f"{name1} vs {name2} (similarity: {similarity:.2f}):")
-                        differences.append(f"- {name1}: {key_points1}")
-                        differences.append(f"- {name2}: {key_points2}\n")
-        
-        return "\n".join(differences) if differences else "Models are fairly aligned but haven't reached consensus threshold."
-
-    def _check_consensus(self, responses: Dict[str, str]) -> bool:
-        """Check if consensus has been reached."""
-        if len(responses) <= 1:
-            return True
-        
-        similarity_score = self._calculate_similarity(responses)
-        has_consensus = similarity_score >= self.consensus_threshold
-        logger.info(f"Consensus check: similarity={similarity_score:.3f}, threshold={self.consensus_threshold}, reached={has_consensus}")
-        return has_consensus
-
-    async def _create_unified_response(self, responses: Dict[str, str]) -> str:
-        """Create a unified response when consensus is reached."""
-        try:
-            synthesis_prompt = (
-                "The following responses have reached consensus. "
-                "Please create a unified response that captures all key points and shared understanding:\n\n"
-            )
-            
-            for llm_name, response in responses.items():
-                synthesis_prompt += f"{llm_name}:\n{response}\n\n"
-            
-            unified_response = await self.llms[0].generate_response(synthesis_prompt)
-            return unified_response
-            
-        except Exception as e:
-            logger.warning(f"Error creating unified response: {e}")
-            unified = "Consensus Reached - Combined Responses:\n\n"
-            for llm_name, response in responses.items():
-                unified += f"From {llm_name}:\n{response}\n\n"
-            return unified
-
-    async def discuss(self, prompt: str, progress_callback: Optional[Callable[[str], Awaitable[None]]] = None) -> Dict[str, str]:
-        """
-        Conduct a consensus discussion.
-        
-        Args:
-            prompt: The initial prompt/question
-            progress_callback: Optional callback for progress updates
-            
-        Returns:
-            Dict containing either:
-            - {"consensus": str} if consensus is reached
-            - {llm_name: response} for each LLM if no consensus
-        """
-        async def update_progress(msg: str):
-            if progress_callback:
-                await progress_callback(msg)
-            logger.info(msg)
-
-        # Create new discussion
+    async def discuss(
+        self,
+        prompt: str,
+        progress_callback: Optional[Callable[[str], None]] = None
+    ) -> Dict[str, Any]:
+        """Conduct a complete consensus discussion."""
         discussion = Discussion(prompt=prompt)
         self.db.add(discussion)
         self.db.commit()
-        
-        try:
-            await update_progress("🚀 Starting consensus discussion...")
-            await update_progress(f"📝 Prompt: {prompt}\n")
-            
-            # Get initial responses
-            responses = {}
-            current_round = DiscussionRound(
-                discussion_id=discussion.id,
-                round_number=0
-            )
-            self.db.add(current_round)
-            self.db.commit()
-            
-            # Initial responses
-            for llm in self.llms:
-                await update_progress(f"💭 Getting response from {llm.name}...")
-                response = await llm.generate_response(prompt)
-                responses[llm.name] = response
-                llm_response = LLMResponse(
-                    round_id=current_round.id,
-                    llm_name=llm.name,
-                    response_text=response
-                )
-                self.db.add(llm_response)
-                key_points = self._extract_key_points(response)
-                await update_progress(f"\n{llm.name} main points:\n{key_points}\n")
-            
-            self.db.commit()
-            
-            # Deliberation rounds
-            iteration = 0
-            while iteration < self.max_iterations:
-                similarity = self._calculate_similarity(responses)
-                await update_progress(f"\n📊 Current agreement level: {similarity:.2f}")
-                
-                if self._check_consensus(responses):
-                    await update_progress("\n🎉 Consensus reached!")
-                    unified_response = await self._create_unified_response(responses)
-                    
-                    discussion.consensus_reached = 1
-                    discussion.final_consensus = unified_response
-                    discussion.completed_at = datetime.utcnow()
-                    self.db.commit()
-                    
-                    await update_progress("\n📝 Unified Consensus Response:")
-                    await update_progress(unified_response)
-                    
-                    return {
-                        "consensus": unified_response,
-                        "individual_responses": responses
-                    }
-                
-                iteration += 1
-                await update_progress(f"\n🤔 Round {iteration}/{self.max_iterations}: Models discussing differences...")
-                
-                current_round = DiscussionRound(
-                    discussion_id=discussion.id,
-                    round_number=iteration
-                )
-                self.db.add(current_round)
-                self.db.commit()
-                
-                differences = self._identify_key_differences(responses)
-                await update_progress(f"\nMain points of discussion:\n{differences}\n")
-                
-                new_responses = {}
-                for llm in self.llms:
-                    await update_progress(f"💭 Getting {llm.name}'s thoughts...")
-                    deliberation = await llm.deliberate(prompt, responses)
-                    new_responses[llm.name] = deliberation
-                    llm_response = LLMResponse(
-                        round_id=current_round.id,
-                        llm_name=llm.name,
-                        response_text=deliberation
-                    )
-                    self.db.add(llm_response)
-                    key_points = self._extract_key_points(deliberation)
-                    await update_progress(f"\n{llm.name}'s main points:\n{key_points}\n")
-                
-                self.db.commit()
-                responses = new_responses
 
-            await update_progress("\n⚠️ Maximum rounds reached without consensus")
-            discussion.completed_at = datetime.utcnow()
-            self.db.commit()
-            return responses
+        def update_progress(msg: str):
+            if progress_callback:
+                progress_callback(msg)
+            logger.info(msg)
+
+        try:
+            update_progress("Starting consensus discussion...")
             
-        except Exception as e:
-            logger.error(f"Error during discussion: {str(e)}", exc_info=True)
+            previous_responses = {}
+            current_round = 0
+            all_responses = {}
+
+            for round_type in ROUND_SEQUENCE:
+                update_progress(f"\n📍 Starting {round_type} round...")
+                
+                discussion_round = DiscussionRound(
+                    discussion_id=discussion.id,
+                    round_number=current_round
+                )
+                self.db.add(discussion_round)
+                self.db.commit()
+
+                round_responses = {}
+                current_responses = {}
+
+                for llm in self.llms:
+                    try:
+                        update_progress(f"Getting {llm.name}'s response...")
+                        
+                        full_prompt = f"""Original prompt: {prompt}\n\n"""
+                        if previous_responses:
+                            full_prompt += "Previous responses:\n"
+                            for name, resp in previous_responses.items():
+                                full_prompt += f"\n{name}: {resp}\n"
+                        full_prompt += f"\n{ROUND_PROMPTS[round_type]}"
+
+                        response = await llm.generate_response(full_prompt)
+                        confidence = self._extract_confidence(response)
+
+                        llm_response = LLMResponse(
+                            round_id=discussion_round.id,
+                            llm_name=llm.name,
+                            response_text=response,
+                            confidence_score=confidence
+                        )
+                        self.db.add(llm_response)
+                        self.db.commit()
+
+                        round_responses[llm.name] = response
+                        current_responses[llm.name] = {
+                            'response': response,
+                            'confidence': confidence
+                        }
+                        
+                        # Send detailed response update including the actual response text
+                        update_progress(
+                            f"LLM: {llm.name}\n"
+                            f"Status: Complete ✓\n"
+                            f"Response:\n{response}\n"
+                            f"Confidence Score: {confidence:.2f}"
+                        )
+
+                    except Exception as e:
+                        logger.error(f"Error getting {llm.name} response: {e}")
+                        update_progress(f"⚠️ Error with {llm.name}: {str(e)}")
+                        continue
+
+                # Calculate round consensus
+                similarity = self._calculate_similarity(round_responses)
+                avg_confidence = sum(r['confidence'] for r in current_responses.values()) / len(current_responses)
+
+                # Send detailed round summary
+                update_progress(
+                    f"\nRound {current_round} Summary:\n"
+                    f"- Round Type: {round_type}\n"
+                    f"- Similarity Score: {similarity:.2f}\n"
+                    f"- Average Confidence: {avg_confidence:.2f}\n"
+                    f"- Required Confidence: {ROUND_CONFIGS[round_type]['required_confidence']:.2f}"
+                )
+
+                # Store for next round
+                previous_responses = round_responses
+                all_responses = current_responses
+
+                # Check if we reached consensus
+                if similarity >= self.consensus_threshold and avg_confidence >= ROUND_CONFIGS[round_type]["required_confidence"]:
+                    if round_type == ROUND_SEQUENCE[-1]:
+                        consensus_llm = max(
+                            current_responses.items(),
+                            key=lambda x: x[1]['confidence']
+                        )[0]
+                        final_consensus = current_responses[consensus_llm]['response']
+                        
+                        discussion.consensus_reached = 1
+                        discussion.final_consensus = final_consensus
+                        discussion.completed_at = datetime.utcnow()
+                        self.db.commit()
+
+                        return {
+                            "consensus": final_consensus,
+                            "individual_responses": round_responses
+                        }
+
+                current_round += 1
+
             discussion.completed_at = datetime.utcnow()
             self.db.commit()
-            raise e
+
+            return {name: data['response'] for name, data in all_responses.items()}
+
+        except Exception as e:
+            logger.error(f"Error during discussion: {str(e)}")
+            discussion.completed_at = datetime.utcnow()
+            self.db.commit()
+            raise
