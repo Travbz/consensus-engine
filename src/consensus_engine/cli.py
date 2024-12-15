@@ -12,10 +12,10 @@ from .models.openai import OpenAILLM
 from .models.anthropic import AnthropicLLM
 from .database.models import Base, Discussion
 from .config.settings import LOG_LEVEL_NUM
+from .config.round_config import ROUND_SEQUENCE
 from .web import GradioInterface
 import logging
 
-# Configure logging
 logging.basicConfig(level=LOG_LEVEL_NUM)
 console = Console()
 
@@ -26,10 +26,6 @@ def get_db_session():
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
     return Session()
-
-async def update_display(msg: str):
-    """Update the console display with new messages."""
-    console.print(Panel(msg, border_style="blue"))
 
 def list_discussions(db_session):
     """List all discussions from the database."""
@@ -53,6 +49,43 @@ def list_discussions(db_session):
     
     console.print(table)
 
+async def run_discussion(prompt: str, engine: ConsensusEngine) -> None:
+    """Run a discussion with the round-based consensus engine."""
+    console.print("\n[bold blue]Starting consensus discussion...[/bold blue]")
+    
+    async def display_progress(msg: str):
+        console.print(msg)
+    
+    try:
+        result = await engine.discuss(prompt, display_progress)
+        
+        if isinstance(result, dict) and "consensus" in result:
+            console.print("\n[bold green]🎉 Consensus Reached![/bold green]")
+            console.print(Panel(
+                result["consensus"],
+                title="Final Consensus",
+                border_style="green"
+            ))
+            
+            console.print("\n[bold blue]Individual Contributions:[/bold blue]")
+            for llm_name, response in result["individual_responses"].items():
+                console.print(Panel(
+                    response,
+                    title=f"{llm_name}'s Response",
+                    border_style="blue"
+                ))
+        else:
+            console.print("\n[bold yellow]⚠️ No Consensus Reached - Final Positions:[/bold yellow]")
+            for llm_name, response in result.items():
+                console.print(Panel(
+                    response,
+                    title=f"{llm_name} Final Response",
+                    border_style="yellow"
+                ))
+
+    except Exception as e:
+        console.print(f"[red]Error during discussion: {str(e)}[/red]")
+
 @click.command()
 @click.option('--web', is_flag=True, help='Launch in web interface mode')
 @click.option('--cli', is_flag=True, help='Launch in CLI mode')
@@ -74,36 +107,37 @@ def main(web, cli, port, host, list_mode, view, debug):
             return
 
         if view is not None:
-            engine = ConsensusEngine([], db_session)
-            discussion = asyncio.run(engine.load_discussion(view))
+            discussion = db_session.query(Discussion).get(view)
             if not discussion:
                 console.print(f"[red]No discussion found with ID {view}[/red]")
                 return
                 
             console.print(Panel(
-                discussion['prompt'],
+                discussion.prompt,
                 title="Original Prompt",
                 border_style="blue"
             ))
             
-            if discussion['consensus_reached']:
+            if discussion.consensus_reached:
                 console.print("\n[bold green]✅ Consensus Reached[/bold green]")
                 console.print(Panel(
-                    discussion['final_consensus'],
+                    discussion.final_consensus,
                     title="Final Consensus",
                     border_style="green"
                 ))
             else:
                 console.print("\n[bold yellow]❌ No Consensus Reached[/bold yellow]")
 
-            for round in discussion['rounds']:
-                console.print(f"\n[bold blue]Round {round['round_number']}:[/bold blue]")
-                for response in round['responses']:
-                    console.print(Panel(
-                        response['response'],
-                        title=response['llm_name'],
-                        border_style="green"
-                    ))
+            for round_num in range(len(ROUND_SEQUENCE)):
+                round = next((r for r in discussion.rounds if r.round_number == round_num), None)
+                if round:
+                    console.print(f"\n[bold blue]Round {round_num} ({ROUND_SEQUENCE[round_num]}):[/bold blue]")
+                    for response in round.responses:
+                        console.print(Panel(
+                            response.response_text,
+                            title=f"{response.llm_name} (Confidence: {response.confidence_score:.2f})",
+                            border_style="blue"
+                        ))
             return
 
         if web:
@@ -127,7 +161,7 @@ def main(web, cli, port, host, list_mode, view, debug):
                 console.print("  - ANTHROPIC_API_KEY")
                 return
 
-            # Initialize LLMs
+            # Initialize LLMs and engine
             llms = [
                 OpenAILLM(openai_key),
                 AnthropicLLM(anthropic_key)
@@ -141,34 +175,8 @@ def main(web, cli, port, host, list_mode, view, debug):
                 console.print("[red]Error: Prompt cannot be empty[/red]")
                 return
             
-            console.print("\n[bold blue]Starting consensus discussion...[/bold blue]\n")
-            
             # Run discussion
-            responses = asyncio.run(engine.discuss(prompt, update_display))
-            
-            if isinstance(responses, dict) and "consensus" in responses:
-                console.print("\n[bold green]🎉 Consensus Reached![/bold green]")
-                console.print(Panel(
-                    responses["consensus"],
-                    title="Unified Consensus Response",
-                    border_style="green"
-                ))
-                
-                console.print("\n[bold blue]Individual Contributions:[/bold blue]")
-                for llm_name, response in responses["individual_responses"].items():
-                    console.print(Panel(
-                        response,
-                        title=f"{llm_name}'s Response",
-                        border_style="blue"
-                    ))
-            else:
-                console.print("\n[bold yellow]⚠️ No Consensus Reached - Final Individual Responses:[/bold yellow]")
-                for llm_name, response in responses.items():
-                    console.print(Panel(
-                        response,
-                        title=f"{llm_name} Final Response",
-                        border_style="yellow"
-                    ))
+            asyncio.run(run_discussion(prompt, engine))
 
     except Exception as e:
         console.print(f"[red]Error: {str(e)}[/red]")

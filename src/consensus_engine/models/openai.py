@@ -3,7 +3,7 @@ from typing import Dict, Optional
 from openai import AsyncOpenAI
 import logging
 from .base import BaseLLM
-from ..config.settings import MODEL_CONFIGS, DELIBERATION_PROMPT
+from ..config.settings import MODEL_CONFIGS
 
 logger = logging.getLogger(__name__)
 
@@ -29,44 +29,30 @@ class OpenAILLM(BaseLLM):
         self.client = AsyncOpenAI(api_key=api_key)
     
     async def generate_response(self, prompt: str) -> str:
-        logger.info(f"Getting response from OpenAI ({self.model})")
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=[{
-                "role": "system",
-                "content": self.system_prompt
-            }, {
-                "role": "user",
-                "content": prompt
-            }],
-            temperature=self.temperature,
-            max_tokens=self.max_tokens
-        )
-        return response.choices[0].message.content
-    
-    async def deliberate(self, prompt: str, responses: Dict[str, str]) -> str:
-        logger.info("OpenAI deliberating on responses")
-        deliberation_prompt = (
-            f"Original prompt: {prompt}\n\n"
-            "Responses:\n"
-        )
-        
-        for llm_name, response in responses.items():
-            deliberation_prompt += f"\n{llm_name}: {response}\n"
-        
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=[{
-                "role": "system",
-                "content": DELIBERATION_PROMPT
-            }, {
-                "role": "user",
-                "content": deliberation_prompt
-            }],
-            temperature=self.temperature,
-            max_tokens=self.max_tokens
-        )
-        return response.choices[0].message.content
+        """Generate a response including confidence score."""
+        try:
+            logger.info(f"Getting response from OpenAI ({self.model})")
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": self.system_prompt
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=self.temperature,
+                max_tokens=self.max_tokens
+            )
+            
+            return response.choices[0].message.content
+
+        except Exception as e:
+            logger.error(f"Error generating OpenAI response: {e}")
+            raise
     
     @property
     def name(self) -> str:

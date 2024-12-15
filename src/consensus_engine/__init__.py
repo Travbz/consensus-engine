@@ -1,15 +1,13 @@
-"""Initialize NLTK resources after package installation."""
+"""Initialize NLTK resources and setup for consensus engine."""
 import os
 import logging
+import nltk
 
 logger = logging.getLogger(__name__)
 
-def initialize():
-    """Download required NLTK resources."""
+def setup_nltk():
+    """Download and set up required NLTK resources."""
     try:
-        # Now that we're running post-installation, we can safely import nltk
-        import nltk
-        
         # Create NLTK data directory in user's home
         nltk_data_dir = os.path.join(os.path.expanduser("~"), "nltk_data")
         os.makedirs(nltk_data_dir, exist_ok=True)
@@ -23,11 +21,12 @@ def initialize():
                 logger.warning(f"Failed to download {resource}: {e}")
                 continue
         
-        print("NLTK resources initialized successfully!")
+        logger.info("NLTK resources initialized successfully!")
+        return True
         
     except Exception as e:
         logger.warning(f"NLTK initialization failed: {e}")
-        print(f"Error initializing NLTK resources: {e}")
+        return False
 
-if __name__ == "__main__":
-    initialize()
+# Run setup when module is imported
+setup_nltk()

@@ -3,7 +3,7 @@ from typing import Dict, Optional
 from anthropic import AsyncAnthropic
 import logging
 from .base import BaseLLM
-from ..config.settings import MODEL_CONFIGS, DELIBERATION_PROMPT
+from ..config.settings import MODEL_CONFIGS
 
 logger = logging.getLogger(__name__)
 
@@ -29,40 +29,27 @@ class AnthropicLLM(BaseLLM):
         self.client = AsyncAnthropic(api_key=api_key)
     
     async def generate_response(self, prompt: str) -> str:
-        logger.info(f"Getting response from Anthropic ({self.model})")
-        response = await self.client.messages.create(
-            model=self.model,
-            max_tokens=self.max_tokens,
-            messages=[{
-                "role": "user",
-                "content": prompt
-            }],
-            system=self.system_prompt,
-            temperature=self.temperature
-        )
-        return response.content[0].text
-    
-    async def deliberate(self, prompt: str, responses: Dict[str, str]) -> str:
-        logger.info("Anthropic deliberating on responses")
-        deliberation_prompt = (
-            f"Original prompt: {prompt}\n\n"
-            "Responses:\n"
-        )
-        
-        for llm_name, response in responses.items():
-            deliberation_prompt += f"\n{llm_name}: {response}\n"
-        
-        response = await self.client.messages.create(
-            model=self.model,
-            max_tokens=self.max_tokens,
-            messages=[{
-                "role": "user",
-                "content": deliberation_prompt
-            }],
-            system=DELIBERATION_PROMPT,
-            temperature=self.temperature
-        )
-        return response.content[0].text
+        """Generate a response including confidence score."""
+        try:
+            logger.info(f"Getting response from Anthropic ({self.model})")
+            response = await self.client.messages.create(
+                model=self.model,
+                max_tokens=self.max_tokens,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                system=self.system_prompt,
+                temperature=self.temperature
+            )
+            
+            return response.content[0].text
+
+        except Exception as e:
+            logger.error(f"Error generating Anthropic response: {e}")
+            raise
     
     @property
     def name(self) -> str:
