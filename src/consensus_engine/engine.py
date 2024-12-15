@@ -11,7 +11,7 @@ from nltk.tokenize import sent_tokenize
 from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from .config.settings import MAX_ITERATIONS, CONSENSUS_THRESHOLD
+from .config.settings import CONSENSUS_SETTINGS, DELIBERATION_PROMPT
 import os
 
 logger = logging.getLogger(__name__)
@@ -21,6 +21,8 @@ class ConsensusEngine:
         self.llms = llms
         self.db = db_session
         self.nltk_enabled = self._setup_nltk()
+        self.max_iterations = CONSENSUS_SETTINGS["max_iterations"]
+        self.consensus_threshold = CONSENSUS_SETTINGS["consensus_threshold"]
 
     def _setup_nltk(self) -> bool:
         """Set up NLTK resources with proper error handling."""
@@ -93,7 +95,7 @@ class ConsensusEngine:
             for name2, response2 in responses.items():
                 if name1 < name2:
                     similarity = self._calculate_similarity({name1: response1, name2: response2})
-                    if similarity < CONSENSUS_THRESHOLD:
+                    if similarity < self.consensus_threshold:
                         key_points1 = self._extract_key_points(response1)
                         key_points2 = self._extract_key_points(response2)
                         differences.append(f"{name1} vs {name2} (similarity: {similarity:.2f}):")
@@ -108,8 +110,8 @@ class ConsensusEngine:
             return True
         
         similarity_score = self._calculate_similarity(responses)
-        has_consensus = similarity_score >= CONSENSUS_THRESHOLD
-        logger.info(f"Consensus check: similarity={similarity_score:.3f}, threshold={CONSENSUS_THRESHOLD}, reached={has_consensus}")
+        has_consensus = similarity_score >= self.consensus_threshold
+        logger.info(f"Consensus check: similarity={similarity_score:.3f}, threshold={self.consensus_threshold}, reached={has_consensus}")
         return has_consensus
 
     async def _create_unified_response(self, responses: Dict[str, str]) -> str:
@@ -187,7 +189,7 @@ class ConsensusEngine:
             
             # Deliberation rounds
             iteration = 0
-            while iteration < MAX_ITERATIONS:
+            while iteration < self.max_iterations:
                 similarity = self._calculate_similarity(responses)
                 await update_progress(f"\n📊 Current agreement level: {similarity:.2f}")
                 
@@ -209,7 +211,7 @@ class ConsensusEngine:
                     }
                 
                 iteration += 1
-                await update_progress(f"\n🤔 Round {iteration}/{MAX_ITERATIONS}: Models discussing differences...")
+                await update_progress(f"\n🤔 Round {iteration}/{self.max_iterations}: Models discussing differences...")
                 
                 current_round = DiscussionRound(
                     discussion_id=discussion.id,

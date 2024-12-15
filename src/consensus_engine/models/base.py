@@ -5,10 +5,20 @@ from typing import Dict, Any, Optional
 class BaseLLM(ABC):
     """Base class for LLM implementations."""
     
-    def __init__(self, api_key: str, model: Optional[str] = None):
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        temperature: float = 0.7,
+        max_tokens: int = 2000,
+        system_prompt: Optional[str] = None
+    ):
         self.api_key = api_key
         self.model = model
-    
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+        self.system_prompt = system_prompt
+
     @abstractmethod
     async def generate_response(self, prompt: str) -> str:
         """Generate a response for the given prompt."""

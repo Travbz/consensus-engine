@@ -161,5 +161,11 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-
+# dont track db files
 *.db
+
+# dont track specific shell scripts
+dir.sh
+
+# dont track query.txt
+query.txt

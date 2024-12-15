@@ -1,43 +1,82 @@
 """Configuration settings for the Consensus Engine."""
 import os
 import logging
+from typing import Dict, Any
 
 # Model Settings
-OPENAI_CONFIG = {
-    "model": "gpt-4-turbo-preview",
-    "temperature": 0.7,
-    "max_tokens": 2000,
-    "system_prompt": "You are a cooperative AI participating in a multi-AI consensus discussion. Your goal is to collaboratively identify common ground and efficiently produce a clear, concise, and actionable response to the original query."
-}
-
-ANTHROPIC_CONFIG = {
-    "model": "claude-3-sonnet-20240229",
-    "temperature": 0.7,
-    "max_tokens": 2000,
-    "system_prompt": "You are a cooperative AI participating in a multi-AI consensus discussion. Your goal is to collaboratively identify common ground and efficiently produce a clear, concise, and actionable response to the original query."
-
+MODEL_CONFIGS = {
+    "openai": {
+        "enabled": True,
+        "api_key_env": "OPENAI_API_KEY",
+        "model": "gpt-4-turbo-preview",
+        "temperature": 0.7,
+        "max_tokens": 2000,
+        "module_path": "consensus_engine.models.openai",
+        "class_name": "OpenAILLM",
+        "system_prompt": """You are a cooperative AI participating in a multi-AI consensus discussion. 
+        Your goal is to collaboratively identify common ground and efficiently produce a clear, 
+        concise, and actionable response to the original query."""
+    },
+    "anthropic": {
+        "enabled": True,
+        "api_key_env": "ANTHROPIC_API_KEY",
+        "model": "claude-3-sonnet-20240229",
+        "temperature": 0.7,
+        "max_tokens": 2000,
+        "module_path": "consensus_engine.models.anthropic",
+        "class_name": "AnthropicLLM",
+        "system_prompt": """You are a cooperative AI participating in a multi-AI consensus discussion. 
+        Your goal is to collaboratively identify common ground and efficiently produce a clear, 
+        concise, and actionable response to the original query."""
+    }
 }
 
 # Consensus Settings
-MAX_ITERATIONS = 4
-CONSENSUS_THRESHOLD = 0.75
+CONSENSUS_SETTINGS = {
+    "max_iterations": 4,
+    "consensus_threshold": 0.75,
+    "min_models": 2,  # Minimum number of models required for consensus
+    "max_models": 5,  # Maximum number of models to use in a single discussion
+}
 
-# System Prompts for Different Stages
-DELIBERATION_PROMPT = """You are tasked with analyzing the provided responses to identify common ground and propose a unified solution that satisfies the original query. 
+# Deliberation Settings
+DELIBERATION_PROMPT = """You are tasked with analyzing the provided responses to identify common ground 
+and propose a unified solution that satisfies the original query. 
 
 - Focus on the core objective of the query and provide a concise, actionable, and user-centric response.
 - Avoid philosophical debates or excessive elaboration; prioritize clarity and simplicity.
-- Highlight the strengths of each response, resolve any conflicting points, and synthesize a response that directly addresses the user's needs.
-- Ensure the final response is easy to understand, aligns with the original query, and offers a practical solution."""
+- Highlight the strengths of each response, resolve any conflicting points, and synthesize a response 
+  that directly addresses the user's needs.
+- Ensure the final response is easy to understand, aligns with the original query, and offers a 
+  practical solution."""
 
 # Database Settings
 DATABASE_URL = os.getenv("CONSENSUS_ENGINE_DB_URL", "sqlite:///consensus_engine.db")
 
 # Logging Settings
-LOG_LEVEL = os.getenv("CONSENSUS_ENGINE_LOG_LEVEL", "ERROR")
+LOG_LEVEL = os.getenv("CONSENSUS_ENGINE_LOG_LEVEL", "INFO")
 LOG_FORMAT = '%(message)s'
 DETAILED_LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
+
+def get_enabled_models() -> Dict[str, Dict[str, Any]]:
+    """Get configurations for all enabled models."""
+    return {name: config for name, config in MODEL_CONFIGS.items() if config["enabled"]}
+
+def validate_model_config(config: Dict[str, Any]) -> bool:
+    """Validate that a model configuration has all required fields."""
+    required_fields = [
+        "api_key_env", "model", "temperature", "max_tokens",
+        "module_path", "class_name", "system_prompt"
+    ]
+    return all(field in config for field in required_fields)
+
+def get_api_key(config: Dict[str, Any]) -> str:
+    """Get API key for a model from environment variables."""
+    api_key = os.getenv(config["api_key_env"])
+    if not api_key:
+        raise ValueError(f"Missing API key: {config['api_key_env']} environment variable not set")
+    return api_key
 
 # Convert string log level to logging constant
 LOG_LEVEL_MAP = {

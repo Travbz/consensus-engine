@@ -3,26 +3,42 @@ from typing import Dict, Optional
 from anthropic import AsyncAnthropic
 import logging
 from .base import BaseLLM
-from ..config.settings import ANTHROPIC_CONFIG, DELIBERATION_PROMPT
+from ..config.settings import MODEL_CONFIGS, DELIBERATION_PROMPT
 
 logger = logging.getLogger(__name__)
 
 class AnthropicLLM(BaseLLM):
-    def __init__(self, api_key: str, model: str = None):
-        super().__init__(api_key, model or ANTHROPIC_CONFIG["model"])
+    def __init__(
+        self, 
+        api_key: str,
+        model: str = None,
+        temperature: float = None,
+        max_tokens: int = None,
+        system_prompt: str = None
+    ):
+        # Get Anthropic config from settings
+        anthropic_config = MODEL_CONFIGS["anthropic"]
+        
+        super().__init__(
+            api_key=api_key,
+            model=model or anthropic_config["model"],
+            temperature=temperature or anthropic_config["temperature"],
+            max_tokens=max_tokens or anthropic_config["max_tokens"],
+            system_prompt=system_prompt or anthropic_config["system_prompt"]
+        )
         self.client = AsyncAnthropic(api_key=api_key)
     
     async def generate_response(self, prompt: str) -> str:
         logger.info(f"Getting response from Anthropic ({self.model})")
         response = await self.client.messages.create(
             model=self.model,
-            max_tokens=ANTHROPIC_CONFIG["max_tokens"],
+            max_tokens=self.max_tokens,
             messages=[{
                 "role": "user",
                 "content": prompt
             }],
-            system=ANTHROPIC_CONFIG["system_prompt"],
-            temperature=ANTHROPIC_CONFIG["temperature"]
+            system=self.system_prompt,
+            temperature=self.temperature
         )
         return response.content[0].text
     
@@ -38,13 +54,13 @@ class AnthropicLLM(BaseLLM):
         
         response = await self.client.messages.create(
             model=self.model,
-            max_tokens=ANTHROPIC_CONFIG["max_tokens"],
+            max_tokens=self.max_tokens,
             messages=[{
                 "role": "user",
                 "content": deliberation_prompt
             }],
             system=DELIBERATION_PROMPT,
-            temperature=ANTHROPIC_CONFIG["temperature"]
+            temperature=self.temperature
         )
         return response.content[0].text
     
