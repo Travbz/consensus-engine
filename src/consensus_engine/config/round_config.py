@@ -2,123 +2,146 @@
 
 ROUND_CONFIGS = {
     "PRE_FLOP": {
-        "name": "Initial Setup",
+        "name": "Initial Understanding",
         "required_confidence": 0.0,
         "max_duration": 300,  # seconds
         "requirements": {
             "min_participants": 2,
             "evidence_required": False
-        }
+        },
+        "consensus_guidance": "Focus on establishing common ground in understanding the question. " +
+                            "Use similar terminology where possible and aim to match confidence levels realistically."
     },
     "FLOP": {
-        "name": "Opening Statements",
+        "name": "Opening Analysis",
         "required_confidence": 0.5,
         "max_duration": 600,
         "requirements": {
             "min_participants": 2,
             "evidence_required": True
-        }
+        },
+        "consensus_guidance": "Build on areas of agreement identified in the initial round. " +
+                            "Frame evidence and analysis in a way that aligns with other participants' perspectives."
     },
     "TURN": {
-        "name": "Evidence Review",
+        "name": "Position Refinement",
         "required_confidence": 0.6,
         "max_duration": 600,
         "requirements": {
             "min_participants": 2,
             "evidence_required": True
-        }
+        },
+        "consensus_guidance": "Work toward convergence by incorporating others' valid points. " +
+                            "Highlight shared evidence and reasoning patterns to strengthen consensus."
     },
     "RIVER": {
-        "name": "Reconciliation",
+        "name": "Consensus Building",
         "required_confidence": 0.7,
         "max_duration": 600,
         "requirements": {
             "min_participants": 2,
             "evidence_required": True
-        }
+        },
+        "consensus_guidance": "Focus on synthesizing a unified position that incorporates the strongest elements " +
+                            "from all participants. Aim for language and structure that mirrors other responses."
     },
     "SHOWDOWN": {
-        "name": "Resolution",
+        "name": "Final Resolution",
         "required_confidence": 0.75,
         "max_duration": 300,
         "requirements": {
             "min_participants": 2,
             "evidence_required": True
-        }
+        },
+        "consensus_guidance": "Formulate responses using similar structure and terminology. " +
+                            "Our consensus threshold is 0.75, requiring high textual similarity and aligned confidence scores."
     }
 }
 
 ROUND_PROMPTS = {
     "PRE_FLOP": """
-    You are entering the initial setup phase of a consensus discussion.
+    You are participating in a consensus-building discussion where responses will be evaluated for similarity.
+    Our goal is to reach agreement through aligned understanding and expression.
+    
+    {consensus_guidance}
+    
     Focus on:
     1. Understanding the core question/problem
     2. Identifying key constraints and requirements
     3. Establishing your initial position
     
     Format your response as:
-    UNDERSTANDING: [Your interpretation of the question]
-    CONSTRAINTS: [Key limitations/requirements identified]
-    INITIAL_POSITION: [Your preliminary stance]
-    CONFIDENCE: [0.0-1.0 with brief justification]
+    UNDERSTANDING: [Clear, concise interpretation using common terminology]
+    CONSTRAINTS: [Key limitations/requirements using standardized language]
+    INITIAL_POSITION: [Preliminary stance aligned with standard domain knowledge]
+    CONFIDENCE: [0.0-1.0 with brief, factual justification]
     """,
     
     "FLOP": """
-    Review the initial positions of all participants.
+    Review other participants' initial positions looking for common ground.
+    
+    {consensus_guidance}
+    
     Focus on:
-    1. Areas of agreement
-    2. Key differences
-    3. Supporting evidence for your position
+    1. Building on shared understandings
+    2. Using consistent terminology
+    3. Supporting evidence alignment
     
     Format your response as:
-    AGREEMENTS: [Points of consensus]
-    DIFFERENCES: [Areas of disagreement]
-    EVIDENCE: [Supporting information]
-    POSITION: [Your current stance]
-    CONFIDENCE: [0.0-1.0 with brief justification]
+    AGREEMENTS: [Points of consensus using matched language]
+    DIFFERENCES: [Areas needing alignment]
+    EVIDENCE: [Supporting information using standard references]
+    POSITION: [Current stance emphasizing common ground]
+    CONFIDENCE: [0.0-1.0 with objective justification]
     """,
     
     "TURN": """
-    Analyze the evidence presented by all participants.
+    Analyze common evidence and reasoning patterns.
+    
+    {consensus_guidance}
+    
     Focus on:
-    1. Evidence evaluation
-    2. Position refinement
-    3. Areas for compromise
+    1. Evidence evaluation using shared criteria
+    2. Position refinement toward consensus
+    3. Identifying compromise opportunities
     
     Format your response as:
-    EVIDENCE_ANALYSIS: [Evaluation of all presented evidence]
-    POSITION_UPDATE: [Your refined stance]
-    COMPROMISE_AREAS: [Potential areas for agreement]
-    CONFIDENCE: [0.0-1.0 with brief justification]
+    EVIDENCE_ANALYSIS: [Evaluation using consistent framework]
+    POSITION_UPDATE: [Refined stance moving toward alignment]
+    COMPROMISE_AREAS: [Specific points of potential agreement]
+    CONFIDENCE: [0.0-1.0 with evidence-based justification]
     """,
     
     "RIVER": """
-    Work towards final consensus.
+    Work toward final consensus by aligning language and structure.
+    
+    {consensus_guidance}
+    
     Focus on:
-    1. Synthesizing positions
-    2. Resolving remaining differences
-    3. Building unified response
+    1. Using consistent terminology
+    2. Matching response structure
+    3. Building unified position
     
     Format your response as:
-    SYNTHESIS: [Combined understanding]
-    RESOLUTION: [Proposed unified position]
-    REMAINING_ISSUES: [Any unresolved points]
-    CONFIDENCE: [0.0-1.0 with brief justification]
+    SYNTHESIS: [Combined understanding with aligned language]
+    RESOLUTION: [Unified position using common framework]
+    REMAINING_ISSUES: [Any points needing final alignment]
+    CONFIDENCE: [0.0-1.0 with consensus-focused justification]
     """,
     
     "SHOWDOWN": """
-    Finalize consensus position.
-    Focus on:
-    1. Final position statement
-    2. Confidence assessment
-    3. Implementation considerations
+    Our consensus threshold is 0.75, requiring high similarity in:
+    - Response structure and terminology
+    - Core position and recommendations
+    - Confidence levels and justifications
     
-    Format your response as:
-    FINAL_POSITION: [Concrete consensus statement]
-    IMPLEMENTATION: [How to apply this consensus]
-    CONFIDENCE: [0.0-1.0 with brief justification]
-    DISSENTING_VIEWS: [Any remaining disagreements]
+    {consensus_guidance}
+    
+    Format your response concisely as:
+    FINAL_POSITION: [Clear, aligned consensus statement - short and concise]
+    DISSENTING_VIEWS: [Any final points needing resolution - short and concise]
     """
 }
 
+# Preserve the original sequence
 ROUND_SEQUENCE = ["PRE_FLOP", "FLOP", "TURN", "RIVER", "SHOWDOWN"]

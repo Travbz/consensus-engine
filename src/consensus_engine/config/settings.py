@@ -3,7 +3,7 @@ import os
 import logging
 from typing import Dict, Any
 
-# Model Settings
+# Model Settings, can add another model by adding a new key to the dictionary
 MODEL_CONFIGS = {
     "openai": {
         "enabled": True,

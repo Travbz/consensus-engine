@@ -9,6 +9,7 @@ import os
 from nltk.tokenize import sent_tokenize
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from difflib import SequenceMatcher
 
 from .models.base import BaseLLM
 from .database.models import Discussion, DiscussionRound, LLMResponse
@@ -45,8 +46,24 @@ class ConsensusEngine:
         """Calculate semantic similarity between responses."""
         if not responses:
             return 0.0
+
+        def extract_final_position(text: str) -> str:
+            """Extract just the FINAL_POSITION section for comparison."""
+            try:
+                if "FINAL_POSITION:" in text:
+                    position = text.split("FINAL_POSITION:")[1].split("IMPLEMENTATION:")[0].strip()
+                    return position
+                return text  # Fall back to full text if section not found
+            except Exception:
+                return text
+
+        # For final round, compare only FINAL_POSITION sections
+        final_round = any("FINAL_POSITION:" in resp for resp in responses.values())
+        if final_round:
+            texts = [extract_final_position(resp) for resp in responses.values()]
+        else:
+            texts = list(responses.values())
             
-        texts = list(responses.values())
         cleaned_texts = [text.lower().strip() for text in texts]
         
         try:
@@ -61,9 +78,13 @@ class ConsensusEngine:
             
         except Exception as e:
             logger.warning(f"Error in vectorization: {e}")
-            common_words = set.intersection(*[set(text.split()) for text in cleaned_texts])
-            total_words = max(len(set.union(*[set(text.split()) for text in cleaned_texts])), 1)
-            return len(common_words) / total_words
+            # Fallback to simpler comparison
+            if final_round:
+                return SequenceMatcher(None, cleaned_texts[0], cleaned_texts[1]).ratio()
+            else:
+                common_words = set.intersection(*[set(text.split()) for text in cleaned_texts])
+                total_words = max(len(set.union(*[set(text.split()) for text in cleaned_texts])), 1)
+                return len(common_words) / total_words
 
     def _extract_confidence(self, text: str) -> float:
         try:
@@ -79,32 +100,28 @@ class ConsensusEngine:
     async def discuss(
         self,
         prompt: str,
-        progress_callback: Optional[Callable[[str], Awaitable[None]]] = None
+        progress_callback: Optional[Callable[[str], None]] = None
     ) -> Dict[str, Any]:
-        """
-        Conduct a complete consensus discussion.
-        """
-        # Create new discussion
+        """Conduct a complete consensus discussion."""
         discussion = Discussion(prompt=prompt)
         self.db.add(discussion)
         self.db.commit()
 
-        async def update_progress(msg: str):
+        def update_progress(msg: str):
             if progress_callback:
-                await progress_callback(msg)
+                progress_callback(msg)
             logger.info(msg)
 
         try:
-            await update_progress("🚀 Starting consensus discussion...")
+            update_progress("Starting consensus discussion...")
             
             previous_responses = {}
             current_round = 0
             all_responses = {}
 
             for round_type in ROUND_SEQUENCE:
-                await update_progress(f"\n📍 Starting {round_type} round...")
+                update_progress(f"\n📍 Starting {round_type} round...")
                 
-                # Create round in database
                 discussion_round = DiscussionRound(
                     discussion_id=discussion.id,
                     round_number=current_round
@@ -117,9 +134,8 @@ class ConsensusEngine:
 
                 for llm in self.llms:
                     try:
-                        await update_progress(f"🤖 Getting {llm.name}'s response...")
+                        update_progress(f"Getting {llm.name}'s response...")
                         
-                        # Construct prompt with round template
                         full_prompt = f"""Original prompt: {prompt}\n\n"""
                         if previous_responses:
                             full_prompt += "Previous responses:\n"
@@ -130,7 +146,6 @@ class ConsensusEngine:
                         response = await llm.generate_response(full_prompt)
                         confidence = self._extract_confidence(response)
 
-                        # Store in database
                         llm_response = LLMResponse(
                             round_id=discussion_round.id,
                             llm_name=llm.name,
@@ -146,23 +161,30 @@ class ConsensusEngine:
                             'confidence': confidence
                         }
                         
-                        await update_progress(
-                            f"\n{llm.name} response received (confidence: {confidence:.2f})"
+                        # Send detailed response update including the actual response text
+                        update_progress(
+                            f"LLM: {llm.name}\n"
+                            f"Status: Complete ✓\n"
+                            f"Response:\n{response}\n"
+                            f"Confidence Score: {confidence:.2f}"
                         )
 
                     except Exception as e:
                         logger.error(f"Error getting {llm.name} response: {e}")
-                        await update_progress(f"⚠️ Error with {llm.name}: {str(e)}")
+                        update_progress(f"⚠️ Error with {llm.name}: {str(e)}")
                         continue
 
                 # Calculate round consensus
                 similarity = self._calculate_similarity(round_responses)
                 avg_confidence = sum(r['confidence'] for r in current_responses.values()) / len(current_responses)
 
-                await update_progress(
-                    f"\nRound {current_round} results:"
-                    f"\nSimilarity: {similarity:.2f}"
-                    f"\nAverage confidence: {avg_confidence:.2f}"
+                # Send detailed round summary
+                update_progress(
+                    f"\nRound {current_round} Summary:\n"
+                    f"- Round Type: {round_type}\n"
+                    f"- Similarity Score: {similarity:.2f}\n"
+                    f"- Average Confidence: {avg_confidence:.2f}\n"
+                    f"- Required Confidence: {ROUND_CONFIGS[round_type]['required_confidence']:.2f}"
                 )
 
                 # Store for next round
@@ -171,9 +193,7 @@ class ConsensusEngine:
 
                 # Check if we reached consensus
                 if similarity >= self.consensus_threshold and avg_confidence >= ROUND_CONFIGS[round_type]["required_confidence"]:
-                    # For final round, use as consensus
                     if round_type == ROUND_SEQUENCE[-1]:
-                        # Use highest confidence response as consensus
                         consensus_llm = max(
                             current_responses.items(),
                             key=lambda x: x[1]['confidence']
@@ -192,7 +212,6 @@ class ConsensusEngine:
 
                 current_round += 1
 
-            # If we get here, no consensus was reached
             discussion.completed_at = datetime.utcnow()
             self.db.commit()
 

@@ -13,7 +13,7 @@ from .models.anthropic import AnthropicLLM
 from .database.models import Base, Discussion
 from .config.settings import LOG_LEVEL_NUM
 from .config.round_config import ROUND_SEQUENCE
-from .web import GradioInterface
+from .web import GradioInterface, find_available_port
 import logging
 
 logging.basicConfig(level=LOG_LEVEL_NUM)
@@ -94,7 +94,8 @@ async def run_discussion(prompt: str, engine: ConsensusEngine) -> None:
 @click.option('--list', 'list_mode', is_flag=True, help='List past discussions')
 @click.option('--view', type=int, help='View a specific discussion by ID')
 @click.option('--debug', is_flag=True, help='Enable debug logging')
-def main(web, cli, port, host, list_mode, view, debug):
+@click.option('--load', type=int, help='Load a previous discussion by ID and continue')
+def main(web, cli, port, host, list_mode, view, debug, load):
     """Consensus Engine - Orchestrate discussions between multiple LLMs."""
     if debug:
         logging.getLogger().setLevel(logging.DEBUG)
@@ -131,7 +132,7 @@ def main(web, cli, port, host, list_mode, view, debug):
             for round_num in range(len(ROUND_SEQUENCE)):
                 round = next((r for r in discussion.rounds if r.round_number == round_num), None)
                 if round:
-                    console.print(f"\n[bold blue]Round {round_num} ({ROUND_SEQUENCE[round_num]}):[/bold blue]")
+                    console.print(f"\n[bold blue]Round {round_num + 1} ({ROUND_SEQUENCE[round_num]}):[/bold blue]")
                     for response in round.responses:
                         console.print(Panel(
                             response.response_text,
@@ -141,6 +142,12 @@ def main(web, cli, port, host, list_mode, view, debug):
             return
 
         if web:
+            try:
+                port = find_available_port(port)
+                console.print(f"[green]Using port: {port}[/green]")
+            except RuntimeError as e:
+                console.print(f"[yellow]Warning: {str(e)}. Using default port.[/yellow]")
+            
             app = GradioInterface()
             app.launch(host=host, port=port, debug=debug)
             return
@@ -169,8 +176,19 @@ def main(web, cli, port, host, list_mode, view, debug):
             
             engine = ConsensusEngine(llms, db_session)
             
-            # Get prompt
-            prompt = console.input("\n[bold green]Enter your prompt:[/bold green] ")
+            # Handle loading previous discussion
+            if load is not None:
+                discussion = db_session.query(Discussion).get(load)
+                if not discussion:
+                    console.print(f"[red]No discussion found with ID {load}[/red]")
+                    return
+                prompt = discussion.prompt
+                console.print(f"\n[bold blue]Loaded previous discussion:[/bold blue]")
+                console.print(Panel(prompt, title="Original Prompt"))
+            else:
+                # Get prompt
+                prompt = console.input("\n[bold green]Enter your prompt:[/bold green] ")
+            
             if not prompt.strip():
                 console.print("[red]Error: Prompt cannot be empty[/red]")
                 return
