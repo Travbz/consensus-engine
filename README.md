@@ -19,7 +19,6 @@ A sophisticated tool for orchestrating structured discussions between multiple L
 - **Robust Discussion Management**:
   - Confidence scoring
   - Semantic similarity analysis
-  - Evidence validation
   - Structured response formats
 
 - **Multiple Interfaces**:
@@ -264,9 +263,9 @@ If you use Consensus Engine in your research, please cite:
 ```bibtex
 @software{consensus_engine,
   title = {Consensus Engine},
-  author = {Your Name},
+  author = {Travis Bridle},
   year = {2024},
-  url = {https://github.com/yourusername/consensus-engine}
+  url = {https://github.com/Travbz/consensus-engine}
 }
 ```
 
