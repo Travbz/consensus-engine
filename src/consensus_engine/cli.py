@@ -14,6 +14,7 @@ from .database.models import Base, Discussion
 from .config.settings import LOG_LEVEL_NUM
 from .config.round_config import ROUND_SEQUENCE
 from .web import GradioInterface, find_available_port
+from .utils.formatting import format_discussion_output, format_showdown_response
 import logging
 
 logging.basicConfig(level=LOG_LEVEL_NUM)
@@ -53,8 +54,14 @@ async def run_discussion(prompt: str, engine: ConsensusEngine) -> None:
     """Run a discussion with the round-based consensus engine."""
     console.print("\n[bold blue]Starting consensus discussion...[/bold blue]")
     
-    async def display_progress(msg: str):
-        console.print(msg)
+    def display_progress(msg: str):
+        # Format the message if it's from the SHOWDOWN round
+        try:
+            formatted_msg = format_discussion_output(msg)
+            console.print(formatted_msg)
+        except Exception as e:
+            console.print(f"[yellow]Warning: Display formatting error: {e}[/yellow]")
+            console.print(str(msg))
     
     try:
         result = await engine.discuss(prompt, display_progress)
@@ -62,7 +69,7 @@ async def run_discussion(prompt: str, engine: ConsensusEngine) -> None:
         if isinstance(result, dict) and "consensus" in result:
             console.print("\n[bold green]🎉 Consensus Reached![/bold green]")
             console.print(Panel(
-                result["consensus"],
+                format_discussion_output(result["consensus"]),
                 title="Final Consensus",
                 border_style="green"
             ))
@@ -70,18 +77,18 @@ async def run_discussion(prompt: str, engine: ConsensusEngine) -> None:
             console.print("\n[bold blue]Individual Contributions:[/bold blue]")
             for llm_name, response in result["individual_responses"].items():
                 console.print(Panel(
-                    response,
+                    format_discussion_output(response),
                     title=f"{llm_name}'s Response",
                     border_style="blue"
                 ))
         else:
             console.print("\n[bold yellow]⚠️ No Consensus Reached - Final Positions:[/bold yellow]")
-            for llm_name, response in result.items():
-                console.print(Panel(
-                    response,
-                    title=f"{llm_name} Final Response",
-                    border_style="yellow"
-                ))
+            formatted_result = format_discussion_output(result)
+            console.print(Panel(
+                formatted_result,
+                title="Final Responses",
+                border_style="yellow"
+            ))
 
     except Exception as e:
         console.print(f"[red]Error during discussion: {str(e)}[/red]")
@@ -95,10 +102,14 @@ async def run_discussion(prompt: str, engine: ConsensusEngine) -> None:
 @click.option('--view', type=int, help='View a specific discussion by ID')
 @click.option('--debug', is_flag=True, help='Enable debug logging')
 @click.option('--load', type=int, help='Load a previous discussion by ID and continue')
-def main(web, cli, port, host, list_mode, view, debug, load):
+@click.option('--log-level', 
+              type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], 
+              case_sensitive=False),
+              default='WARNING',
+              help='Set the logging level')
+def main(web, cli, port, host, list_mode, view, debug, load, log_level):
     """Consensus Engine - Orchestrate discussions between multiple LLMs."""
-    if debug:
-        logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(log_level.upper())
 
     db_session = get_db_session()
 

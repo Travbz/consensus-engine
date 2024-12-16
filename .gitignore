@@ -168,4 +168,5 @@ cython_debug/
 dir.sh
 
 # dont track query.txt
+*queries/
 query.txt

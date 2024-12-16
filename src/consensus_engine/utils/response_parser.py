@@ -4,11 +4,28 @@ import re
 
 class ResponseParser:
     @staticmethod
+    def validate_code_response(response: str) -> bool:
+        """Validate code blocks in response."""
+        # Check for code block markers
+        has_code_blocks = "```" in response
+        
+        # Check for language specification
+        has_language = bool(re.search(r"```\w+", response))
+        
+        # Check for implementation details
+        has_implementation = "IMPLEMENTATION:" in response
+        
+        return has_code_blocks and has_language and has_implementation
+
+    @staticmethod
     def parse_structured_response(response: str) -> Dict[str, Any]:
         """Parse a structured response into components."""
         components = {}
         current_section = None
         current_content = []
+        
+        # Check if this appears to be a code request
+        code_requested = bool(re.search(r"how to|write code|implement|create a", response.lower()))
         
         for line in response.split('\n'):
             line = line.strip()
@@ -28,6 +45,10 @@ class ResponseParser:
         # Add final section
         if current_section:
             components[current_section] = '\n'.join(current_content).strip()
+            
+        # Validate code responses
+        if code_requested and not ResponseParser.validate_code_response(response):
+            raise ValueError("Invalid code response format")
             
         return components
     

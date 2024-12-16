@@ -1,0 +1,3604 @@
+.
+.
+./.github
+./.github/workflows
+./.github/workflows/released.yaml
+./.github/workflows/test-on-pr.yaml
+./.gitignore
+./LICENSE
+./README.md
+./consensus_engine.db
+./dir.sh
+./project-structure.txt
+./pyproject.toml
+./pytest.ini
+./src
+./src/consensus_engine
+./src/consensus_engine/__init__.py
+./src/consensus_engine/cli.py
+./src/consensus_engine/config
+./src/consensus_engine/config/__init__.py
+./src/consensus_engine/config/round_config.py
+./src/consensus_engine/config/settings.py
+./src/consensus_engine/database
+./src/consensus_engine/database/__init__.py
+./src/consensus_engine/database/models.py
+./src/consensus_engine/deliberation
+./src/consensus_engine/deliberation/__init__.py
+./src/consensus_engine/deliberation/round_manager.py
+./src/consensus_engine/deliberation/validators.py
+./src/consensus_engine/engine.py
+./src/consensus_engine/models
+./src/consensus_engine/models/__init__.py
+./src/consensus_engine/models/anthropic.py
+./src/consensus_engine/models/base.py
+./src/consensus_engine/models/gemini.py
+./src/consensus_engine/models/loader.py
+./src/consensus_engine/models/openai.py
+./src/consensus_engine/protocols
+./src/consensus_engine/protocols/__init__.py
+./src/consensus_engine/protocols/protocols.py
+./src/consensus_engine/utils
+./src/consensus_engine/utils/__init__.py
+./src/consensus_engine/utils/response_parser.py
+./src/consensus_engine/web.py
+./test_discussion.py
+./tests
+./tests/README.md
+./tests/__init__.py
+./tests/test_engine.py
+./tests/test_integration.py
+./tests/test_interfaces.py
+./tests/test_models.py
+
+=== Tree View ===
+
+/Users/travops/consensus-engine
+├── LICENSE
+├── README.md
+├── consensus_engine.db
+├── dir.sh
+├── project-structure.txt
+├── pyproject.toml
+├── pytest.ini
+├── src
+│   └── consensus_engine
+│       ├── __init__.py
+│       ├── cli.py
+│       ├── config
+│       │   ├── __init__.py
+│       │   ├── round_config.py
+│       │   └── settings.py
+│       ├── database
+│       │   ├── __init__.py
+│       │   └── models.py
+│       ├── deliberation
+│       │   ├── __init__.py
+│       │   ├── round_manager.py
+│       │   └── validators.py
+│       ├── engine.py
+│       ├── models
+│       │   ├── __init__.py
+│       │   ├── anthropic.py
+│       │   ├── base.py
+│       │   ├── gemini.py
+│       │   ├── loader.py
+│       │   └── openai.py
+│       ├── protocols
+│       │   ├── __init__.py
+│       │   └── protocols.py
+│       ├── utils
+│       │   ├── __init__.py
+│       │   └── response_parser.py
+│       └── web.py
+├── test_discussion.py
+└── tests
+    ├── README.md
+    ├── __init__.py
+    ├── test_engine.py
+    ├── test_integration.py
+    ├── test_interfaces.py
+    └── test_models.py
+
+10 directories, 36 files
+
+=== File Contents ===
+
+
+#test_discussion.py (binary file - contents excluded)
+
+#pytest.ini
+[pytest]
+testpaths = tests
+python_files = test_*.py
+python_classes = Test*
+python_functions = test_*
+
+# Enable asyncio
+asyncio_mode = auto
+
+# Configure markers
+markers =
+    integration: marks tests that require API access (deselect with '-m "not integration"')
+    unit: marks unit tests
+    interface: marks interface tests
+
+# Configure logging
+log_cli = true
+log_cli_level = INFO
+log_cli_format = %(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)
+log_cli_date_format = %Y-%m-%d %H:%M:%S
+
+# Test execution settings
+addopts = -v --tb=short
+#LICENSE
+MIT License
+
+Copyright (c) 2024 TravBz
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+#consensus_engine.db (binary file - contents excluded)
+
+#pyproject.toml
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "consensus-engine"
+version = "0.1.0"
+authors = [
+    { name = "Your Name", email = "your.email@example.com" },
+]
+description = "A consensus engine for orchestrating discussions between multiple LLMs"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "click>=8.0.0",
+    "openai>=1.0.0",
+    "anthropic>=0.5.0",
+    "asyncio>=3.4.3",
+    "aiohttp>=3.8.0",
+    "python-dotenv>=0.19.0",
+    "nltk>=3.8.1",
+    "scikit-learn>=1.0.2",
+    "numpy>=1.21.0",
+    "gradio>=4.0.0",
+    "rich>=13.0.0",
+    "sqlalchemy>=2.0.0",
+    "pytest>=7.4.4",
+    "pytest-asyncio>=0.23.3",
+    "pylint>=2.17.0"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/consensus_engine"]
+
+[project.scripts]
+consensus-engine = "consensus_engine.cli:main"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+#tests/test_engine.py
+"""Tests for the consensus engine core functionality."""
+import pytest
+import asyncio
+from unittest.mock import MagicMock, AsyncMock
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from consensus_engine.engine import ConsensusEngine
+from consensus_engine.database.models import Base, Discussion
+from consensus_engine.config.round_config import ROUND_SEQUENCE
+
+class MockLLM:
+    def __init__(self, name="MockLLM", responses=None):
+        self.name = name
+        self.responses = responses or {}
+        self.api_key = "mock-key"
+        self.model = "mock-model"
+        self.temperature = 0.7
+        self.max_tokens = 2000
+        self.system_prompt = "mock prompt"
+
+    async def generate_response(self, prompt: str) -> str:
+        # Return pre-configured responses or a default response
+        return self.responses.get(prompt, f"""
+        UNDERSTANDING: Test understanding
+        CONSTRAINTS: Test constraints
+        INITIAL_POSITION: Test position
+        CONFIDENCE: 0.8 This is a test response
+        """)
+
+@pytest.fixture
+def db_session():
+    """Create a test database session."""
+    engine = create_engine('sqlite:///:memory:')
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    return Session()
+
+@pytest.fixture
+def mock_llms():
+    """Create mock LLMs with predefined responses."""
+    llm1 = MockLLM("MockLLM1", {
+        "test_prompt": """
+        UNDERSTANDING: Clear understanding
+        CONSTRAINTS: Known constraints
+        INITIAL_POSITION: Strong position
+        CONFIDENCE: 0.9 High confidence response
+        """
+    })
+    
+    llm2 = MockLLM("MockLLM2", {
+        "test_prompt": """
+        UNDERSTANDING: Similar understanding
+        CONSTRAINTS: Similar constraints
+        INITIAL_POSITION: Compatible position
+        CONFIDENCE: 0.85 Good confidence response
+        """
+    })
+    
+    return [llm1, llm2]
+
+@pytest.fixture
+def engine(db_session, mock_llms):
+    """Create a consensus engine instance with mock LLMs."""
+    return ConsensusEngine(mock_llms, db_session)
+
+@pytest.mark.asyncio
+async def test_basic_consensus(engine):
+    """Test basic consensus achievement."""
+    result = await engine.discuss("test_prompt")
+    assert isinstance(result, dict)
+    assert "consensus" in result or len(result) == len(engine.llms)
+
+@pytest.mark.asyncio
+async def test_confidence_extraction(engine):
+    """Test confidence score extraction from responses."""
+    result = await engine.discuss("test_prompt")
+    # Check if we get confidence scores
+    if "consensus" in result:
+        assert isinstance(result.get("consensus"), str)
+    else:
+        assert all(isinstance(r, str) for r in result.values())
+
+@pytest.mark.asyncio
+async def test_round_progression(engine):
+    """Test that rounds progress correctly."""
+    async def progress_callback(msg: str):
+        assert isinstance(msg, str)
+    
+    result = await engine.discuss("test_prompt", progress_callback)
+    # Verify rounds were processed
+    discussions = engine.db.query(Discussion).all()
+    assert len(discussions) > 0
+    assert len(discussions[0].rounds) > 0
+
+@pytest.mark.asyncio
+async def test_similarity_calculation(engine):
+    """Test similarity calculation between responses."""
+    responses = {
+        "LLM1": "This is a test response about consensus",
+        "LLM2": "This is another test response about reaching consensus"
+    }
+    similarity = engine._calculate_similarity(responses)
+    assert 0 <= similarity <= 1
+
+@pytest.mark.asyncio
+async def test_error_handling(engine):
+    """Test error handling during discussion."""
+    # Create a failing LLM
+    failing_llm = MockLLM("FailingLLM")
+    failing_llm.generate_response = AsyncMock(side_effect=Exception("Test error"))
+    engine.llms.append(failing_llm)
+    
+    # Should continue with remaining LLMs
+    result = await engine.discuss("test_prompt")
+    assert isinstance(result, dict)
+
+@pytest.mark.asyncio
+async def test_round_specific_prompts(engine):
+    """Test that each round uses appropriate prompts."""
+    async def progress_callback(msg: str):
+        # Check if round types are mentioned in progress messages
+        for round_type in ROUND_SEQUENCE:
+            if round_type in msg:
+                return
+    
+    result = await engine.discuss("test_prompt", progress_callback)
+    assert isinstance(result, dict)
+
+@pytest.mark.asyncio
+async def test_consensus_threshold(engine):
+    """Test consensus threshold behavior."""
+    # Create LLMs with very different responses
+    divergent_llm = MockLLM("DivergentLLM", {
+        "test_prompt": """
+        UNDERSTANDING: Completely different understanding
+        CONSTRAINTS: Different constraints
+        INITIAL_POSITION: Opposing position
+        CONFIDENCE: 0.4 Low confidence response
+        """
+    })
+    engine.llms.append(divergent_llm)
+    
+    result = await engine.discuss("test_prompt")
+    # Should not reach consensus with divergent responses
+    assert isinstance(result, dict)
+    assert all(isinstance(r, str) for r in result.values())
+#tests/__init__.py
+"""Test suite for the consensus engine."""
+#tests/README.md
+# Consensus Engine Tests
+
+## Overview
+This directory contains the test suite for the Consensus Engine. The tests cover unit testing, integration testing, and interface testing.
+
+## Setup
+
+1. Install test dependencies:
+```bash
+pip install pytest pytest-asyncio pytest-mock pytest-cov
+```
+
+2. Set up environment variables for API testing:
+```bash
+export OPENAI_API_KEY="your-openai-key"
+export ANTHROPIC_API_KEY="your-anthropic-key"
+```
+
+## Test Structure
+- `test_engine.py` - Core engine unit tests
+- `test_models.py` - LLM model implementation tests
+- `test_integration.py` - Full system integration tests
+- `test_interfaces.py` - CLI and web interface tests
+
+## Running Tests
+
+### Run all tests:
+```bash
+pytest
+```
+
+### Run specific test types:
+```bash
+# Unit tests only
+pytest -m "not integration"
+
+# Integration tests only
+pytest -m integration
+
+# Interface tests only
+pytest tests/test_interfaces.py
+```
+
+### Run with coverage:
+```bash
+pytest --cov=consensus_engine --cov-report=term-missing
+```
+
+### Run with logging:
+```bash
+pytest --log-cli-level=INFO
+```
+
+### Run a specific test:
+```bash
+pytest tests/test_engine.py::test_basic_consensus
+```
+
+## Test Categories
+
+### Unit Tests
+Basic component testing without external dependencies:
+- Engine functionality
+- Model implementations
+- Configuration handling
+- Response parsing
+
+### Integration Tests
+Full system testing with real API calls:
+- Complete discussion flows
+- Multiple concurrent discussions
+- Error recovery
+- Long-form discussions
+
+### Interface Tests
+Testing user interfaces:
+- CLI commands
+- Web interface functionality
+- Error handling
+- Port management
+
+## Test Configuration
+
+The `pytest.ini` file contains settings for:
+- Test discovery patterns
+- Marker definitions
+- Logging configuration
+- Default execution options
+
+## Skipping Tests
+
+### Skip integration tests (no API keys):
+```bash
+pytest -m "not integration"
+```
+
+### Skip specific test:
+```bash
+pytest -k "not test_name"
+```
+
+## Writing New Tests
+
+### Adding a unit test:
+```python
+@pytest.mark.unit
+def test_new_feature():
+    # Test implementation
+    assert expected == actual
+```
+
+### Adding an integration test:
+```python
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_new_integration():
+    # Integration test implementation
+    result = await some_async_operation()
+    assert result is not None
+```
+
+### Adding an interface test:
+```python
+@pytest.mark.interface
+def test_new_interface_feature(cli_runner):
+    result = cli_runner.invoke(command, ["--arg"])
+    assert result.exit_code == 0
+```
+
+## Common Issues
+
+### API Rate Limits
+Integration tests may fail due to API rate limits. Solutions:
+1. Add delays between tests
+2. Use the `@pytest.mark.skipif` decorator
+3. Mock the API calls for development
+
+### Database Tests
+Tests use SQLite in-memory database by default. To test with a different database:
+1. Set the `CONSENSUS_ENGINE_DB_URL` environment variable
+2. Update the database fixture in conftest.py
+
+### Async Tests
+Remember to:
+1. Use the `@pytest.mark.asyncio` decorator
+2. Make async test functions coroutines
+3. Use `await` with async operations
+
+## Contributing Tests
+
+When adding new tests:
+1. Follow existing naming conventions
+2. Add appropriate markers
+3. Include docstrings explaining test purpose
+4. Update this README if adding new test types
+
+## Test Coverage
+
+Monitor test coverage:
+```bash
+pytest --cov=consensus_engine --cov-report=html
+```
+
+This generates a coverage report in `htmlcov/index.html`
+#tests/test_models.py
+"""Tests for LLM model implementations."""
+import pytest
+from unittest.mock import AsyncMock, patch
+from consensus_engine.models.openai import OpenAILLM
+from consensus_engine.models.anthropic import AnthropicLLM
+from consensus_engine.config.settings import MODEL_CONFIGS
+
+@pytest.fixture
+def openai_llm():
+    """Create an OpenAI LLM instance with mock API key."""
+    return OpenAILLM("mock-api-key")
+
+@pytest.fixture
+def anthropic_llm():
+    """Create an Anthropic LLM instance with mock API key."""
+    return AnthropicLLM("mock-api-key")
+
+@pytest.mark.asyncio
+async def test_openai_response_format(openai_llm):
+    """Test OpenAI response formatting."""
+    mock_response = AsyncMock()
+    mock_response.choices = [
+        AsyncMock(
+            message=AsyncMock(
+                content="""
+                UNDERSTANDING: Test understanding
+                CONSTRAINTS: Test constraints
+                INITIAL_POSITION: Test position
+                CONFIDENCE: 0.8 Test confidence explanation
+                """
+            )
+        )
+    ]
+    
+    with patch('openai.AsyncOpenAI.chat.completions.create', return_value=mock_response):
+        response = await openai_llm.generate_response("test prompt")
+        assert isinstance(response, str)
+        assert "UNDERSTANDING:" in response
+        assert "CONFIDENCE:" in response
+
+@pytest.mark.asyncio
+async def test_anthropic_response_format(anthropic_llm):
+    """Test Anthropic response formatting."""
+    mock_response = AsyncMock()
+    mock_response.content = [
+        AsyncMock(
+            text="""
+            UNDERSTANDING: Test understanding
+            CONSTRAINTS: Test constraints
+            INITIAL_POSITION: Test position
+            CONFIDENCE: 0.8 Test confidence explanation
+            """
+        )
+    ]
+    
+    with patch('anthropic.AsyncAnthropic.messages.create', return_value=mock_response):
+        response = await anthropic_llm.generate_response("test prompt")
+        assert isinstance(response, str)
+        assert "UNDERSTANDING:" in response
+        assert "CONFIDENCE:" in response
+
+@pytest.mark.asyncio
+async def test_openai_error_handling(openai_llm):
+    """Test OpenAI error handling."""
+    with patch('openai.AsyncOpenAI.chat.completions.create', 
+              side_effect=Exception("API Error")):
+        with pytest.raises(Exception):
+            await openai_llm.generate_response("test prompt")
+
+@pytest.mark.asyncio
+async def test_anthropic_error_handling(anthropic_llm):
+    """Test Anthropic error handling."""
+    with patch('anthropic.AsyncAnthropic.messages.create',
+              side_effect=Exception("API Error")):
+        with pytest.raises(Exception):
+            await anthropic_llm.generate_response("test prompt")
+
+def test_model_configuration():
+    """Test model configuration loading."""
+    openai_config = MODEL_CONFIGS["openai"]
+    anthropic_config = MODEL_CONFIGS["anthropic"]
+    
+    assert "model" in openai_config
+    assert "temperature" in openai_config
+    assert "max_tokens" in openai_config
+    assert "system_prompt" in openai_config
+    
+    assert "model" in anthropic_config
+    assert "temperature" in anthropic_config
+    assert "max_tokens" in anthropic_config
+    assert "system_prompt" in anthropic_config
+
+@pytest.mark.asyncio
+async def test_openai_system_prompt(openai_llm):
+    """Test OpenAI system prompt usage."""
+    mock_response = AsyncMock()
+    mock_response.choices = [AsyncMock(message=AsyncMock(content="Test response"))]
+    
+    with patch('openai.AsyncOpenAI.chat.completions.create') as mock_create:
+        await openai_llm.generate_response("test prompt")
+        
+        # Verify system prompt was included in the API call
+        call_args = mock_create.call_args[1]
+        messages = call_args['messages']
+        assert any(m['role'] == 'system' for m in messages)
+
+@pytest.mark.asyncio
+async def test_anthropic_system_prompt(anthropic_llm):
+    """Test Anthropic system prompt usage."""
+    mock_response = AsyncMock()
+    mock_response.content = [AsyncMock(text="Test response")]
+    
+    with patch('anthropic.AsyncAnthropic.messages.create') as mock_create:
+        await anthropic_llm.generate_response("test prompt")
+        
+        # Verify system prompt was included in the API call
+        call_args = mock_create.call_args[1]
+        assert 'system' in call_args
+#tests/test_integration.py
+"""Integration tests for the consensus engine."""
+import pytest
+import asyncio
+import os
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from consensus_engine.engine import ConsensusEngine
+from consensus_engine.models.openai import OpenAILLM
+from consensus_engine.models.anthropic import AnthropicLLM
+from consensus_engine.database.models import Base, Discussion
+
+@pytest.fixture(scope="module")
+def db_engine():
+    """Create a test database engine."""
+    engine = create_engine('sqlite:///:memory:')
+    Base.metadata.create_all(engine)
+    return engine
+
+@pytest.fixture
+def db_session(db_engine):
+    """Create a test database session."""
+    Session = sessionmaker(bind=db_engine)
+    session = Session()
+    yield session
+    session.close()
+
+@pytest.fixture
+def real_llms():
+    """Create real LLM instances with API keys from environment."""
+    openai_key = os.getenv("OPENAI_API_KEY")
+    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+    
+    if not openai_key or not anthropic_key:
+        pytest.skip("API keys not available")
+    
+    return [
+        OpenAILLM(openai_key),
+        AnthropicLLM(anthropic_key)
+    ]
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_full_discussion_flow(db_session, real_llms):
+    """Test a complete discussion flow with real LLMs."""
+    engine = ConsensusEngine(real_llms, db_session)
+    
+    test_prompt = "What is the capital of France? Provide a clear, simple answer."
+    
+    result = await engine.discuss(test_prompt)
+    
+    # Check database state
+    discussion = db_session.query(Discussion).first()
+    assert discussion is not None
+    assert discussion.prompt == test_prompt
+    assert discussion.completed_at is not None
+    
+    # Check rounds were recorded
+    assert len(discussion.rounds) > 0
+    for round in discussion.rounds:
+        assert len(round.responses) > 0
+        for response in round.responses:
+            assert response.llm_name in [llm.name for llm in real_llms]
+            assert response.response_text is not None
+            assert response.confidence_score is not None
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_multi_discussion_isolation(db_session, real_llms):
+    """Test multiple discussions don't interfere with each other."""
+    engine = ConsensusEngine(real_llms, db_session)
+    
+    prompts = [
+        "What is 2+2?",
+        "What color is the sky?",
+    ]
+    
+    results = []
+    for prompt in prompts:
+        result = await engine.discuss(prompt)
+        results.append(result)
+    
+    discussions = db_session.query(Discussion).all()
+    assert len(discussions) == len(prompts)
+    
+    # Check each discussion is properly isolated
+    for disc, prompt in zip(discussions, prompts):
+        assert disc.prompt == prompt
+        assert len(disc.rounds) > 0
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_concurrent_discussions(db_session, real_llms):
+    """Test handling multiple concurrent discussions."""
+    engine = ConsensusEngine(real_llms, db_session)
+    
+    prompts = [
+        "What is the first month of the year?",
+        "What is the last month of the year?",
+        "How many months are in a year?",
+    ]
+    
+    async def run_discussion(prompt):
+        return await engine.discuss(prompt)
+    
+    tasks = [run_discussion(prompt) for prompt in prompts]
+    results = await asyncio.gather(*tasks)
+    
+    assert len(results) == len(prompts)
+    discussions = db_session.query(Discussion).all()
+    assert len(discussions) == len(prompts)
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_error_recovery(db_session, real_llms):
+    """Test system recovery from API errors."""
+    engine = ConsensusEngine(real_llms, db_session)
+    
+    # Force an error in the middle of a discussion
+    original_generate = real_llms[0].generate_response
+    error_triggered = False
+    
+    async def generate_with_error(*args, **kwargs):
+        nonlocal error_triggered
+        if not error_triggered:
+            error_triggered = True
+            raise Exception("Simulated API error")
+        return await original_generate(*args, **kwargs)
+    
+    real_llms[0].generate_response = generate_with_error
+    
+    result = await engine.discuss("What day comes after Monday?")
+    
+    # Check that discussion completed despite error
+    discussion = db_session.query(Discussion).first()
+    assert discussion is not None
+    assert discussion.completed_at is not None
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_long_discussion(db_session, real_llms):
+    """Test handling of a longer, more complex discussion."""
+    engine = ConsensusEngine(real_llms, db_session)
+    
+    complex_prompt = """
+    Consider the environmental impact of electric vehicles vs traditional gas vehicles.
+    Include manufacturing, energy source, and end-of-life disposal in your analysis.
+    What has the greater overall environmental impact? Provide concrete reasoning.
+    """
+    
+    result = await engine.discuss(complex_prompt)
+    
+    discussion = db_session.query(Discussion).first()
+    assert discussion is not None
+    
+    # Check that we have multiple rounds of discussion
+    assert len(discussion.rounds) > 1
+    
+    # Check response quality metrics
+    for round in discussion.rounds:
+        for response in round.responses:
+            assert len(response.response_text) > 100  # Ensure substantial responses
+            assert response.confidence_score is not None
+#tests/test_interfaces.py
+"""Tests for CLI and web interfaces."""
+import pytest
+from unittest.mock import AsyncMock, patch, MagicMock
+from click.testing import CliRunner
+from gradio.testing_utils import GradioTestClient
+import tempfile
+import os
+from consensus_engine.cli import main as cli_main
+from consensus_engine.web import GradioInterface
+
+@pytest.fixture
+def cli_runner():
+    """Create a Click CLI test runner."""
+    return CliRunner()
+
+@pytest.fixture
+def mock_engine():
+    """Create a mock consensus engine."""
+    mock = AsyncMock()
+    mock.discuss = AsyncMock(return_value={
+        "consensus": "Test consensus",
+        "individual_responses": {
+            "LLM1": "Test response 1",
+            "LLM2": "Test response 2"
+        }
+    })
+    return mock
+
+@pytest.fixture
+def mock_db_session():
+    """Create a mock database session."""
+    mock = MagicMock()
+    mock.query = MagicMock()
+    return mock
+
+def test_cli_basic_command(cli_runner):
+    """Test basic CLI command execution."""
+    with patch.dict('os.environ', {
+        'OPENAI_API_KEY': 'test-key',
+        'ANTHROPIC_API_KEY': 'test-key'
+    }):
+        result = cli_runner.invoke(cli_main, ['--help'])
+        assert result.exit_code == 0
+        assert 'Consensus Engine' in result.output
+
+def test_cli_list_discussions(cli_runner, mock_db_session):
+    """Test listing discussions via CLI."""
+    mock_discussions = [
+        MagicMock(
+            id=1,
+            prompt="Test prompt 1",
+            consensus_reached=1,
+            started_at="2024-01-01"
+        ),
+        MagicMock(
+            id=2,
+            prompt="Test prompt 2",
+            consensus_reached=0,
+            started_at="2024-01-02"
+        )
+    ]
+    
+    with patch('consensus_engine.cli.get_db_session', return_value=mock_db_session):
+        mock_db_session.query().all.return_value = mock_discussions
+        result = cli_runner.invoke(cli_main, ['--list'])
+        assert result.exit_code == 0
+        assert "Test prompt 1" in result.output
+        assert "Test prompt 2" in result.output
+
+@pytest.mark.asyncio
+async def test_cli_discussion(cli_runner, mock_engine, mock_db_session):
+    """Test running a discussion via CLI."""
+    with patch('consensus_engine.cli.get_db_session', return_value=mock_db_session), \
+         patch('consensus_engine.cli.ConsensusEngine', return_value=mock_engine), \
+         patch.dict('os.environ', {
+             'OPENAI_API_KEY': 'test-key',
+             'ANTHROPIC_API_KEY': 'test-key'
+         }):
+        result = cli_runner.invoke(cli_main, input="Test prompt\n")
+        assert result.exit_code == 0
+        assert "Consensus" in result.output
+
+@pytest.mark.asyncio
+async def test_web_interface_creation():
+    """Test web interface creation."""
+    with patch.dict('os.environ', {
+        'OPENAI_API_KEY': 'test-key',
+        'ANTHROPIC_API_KEY': 'test-key'
+    }):
+        interface = GradioInterface()
+        assert interface is not None
+
+@pytest.mark.asyncio
+async def test_web_discussion_flow(mock_engine, mock_db_session):
+    """Test discussion flow in web interface."""
+    with patch('consensus_engine.web.get_db_session', return_value=mock_db_session), \
+         patch('consensus_engine.web.ConsensusEngine', return_value=mock_engine):
+        interface = GradioInterface()
+        
+        # Test discussion progress updates
+        updates = []
+        async for msg in interface._run_discussion("Test prompt"):
+            updates.append(msg)
+        
+        assert any("Consensus Reached" in msg for msg in updates)
+
+@pytest.mark.asyncio
+async def test_web_interface_error_handling(mock_engine, mock_db_session):
+    """Test web interface error handling."""
+    mock_engine.discuss = AsyncMock(side_effect=Exception("Test error"))
+    
+    with patch('consensus_engine.web.get_db_session', return_value=mock_db_session), \
+         patch('consensus_engine.web.ConsensusEngine', return_value=mock_engine):
+        interface = GradioInterface()
+        
+        updates = []
+        async for msg in interface._run_discussion("Test prompt"):
+            updates.append(msg)
+        
+        assert any("Error" in msg for msg in updates)
+
+def test_web_interface_port_handling():
+    """Test web interface port selection."""
+    with patch.dict('os.environ', {
+        'OPENAI_API_KEY': 'test-key',
+        'ANTHROPIC_API_KEY': 'test-key'
+    }), patch('gradio.Blocks.launch') as mock_launch:
+        interface = GradioInterface()
+        interface.launch(port=7860)
+        
+        mock_launch.assert_called_once()
+        assert mock_launch.call_args[1]['server_port'] == 7860
+#README.md
+# Consensus Engine
+
+A sophisticated tool for orchestrating structured discussions between multiple Large Language Models (LLMs) to reach consensus through a round-based deliberation process.
+
+## Features
+
+- **Round-Based Consensus Protocol**: Implements a poker-style discussion format
+  - PRE_FLOP: Initial setup and position establishment
+  - FLOP: Opening statements and evidence presentation
+  - TURN: Evidence analysis and position refinement
+  - RIVER: Final consensus building
+  - SHOWDOWN: Resolution and implementation details
+
+- **Multiple LLM Support**:
+  - OpenAI GPT-4 integration
+  - Anthropic Claude integration
+  - Extensible architecture for adding new models
+
+- **Robust Discussion Management**:
+  - Confidence scoring
+  - Semantic similarity analysis
+  - Evidence validation
+  - Structured response formats
+
+- **Multiple Interfaces**:
+  - Command-line interface
+  - Web interface (Gradio-based)
+  - API for custom integration
+
+## Prerequisites
+
+- Python 3.8 or later
+- OpenAI API key
+- Anthropic API key
+- Git
+
+## Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/travbz/consensus-engine.git
+cd consensus-engine
+```
+
+2. Create and activate a virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+3. Install the package:
+```bash
+pip install -e .
+```
+
+## Configuration
+
+1. Set up environment variables:
+```bash
+export OPENAI_API_KEY="your-openai-key"
+export ANTHROPIC_API_KEY="your-anthropic-key"
+```
+
+2. Optional: Configure model settings in `src/consensus_engine/config/settings.py`:
+- Model selection
+- Temperature settings
+- Token limits
+- System prompts
+
+## Usage
+
+### Command Line Interface
+
+1. Start a discussion:
+```bash
+consensus-engine
+```
+
+2. View past discussions:
+```bash
+consensus-engine --list
+```
+
+3. View specific discussion:
+```bash
+consensus-engine --view <discussion_id>
+```
+
+4. Enable debug logging:
+```bash
+consensus-engine --debug
+```
+
+### Web Interface
+
+1. Start the web server:
+```bash
+consensus-engine --web
+```
+
+2. Optional: Specify port and host:
+```bash
+consensus-engine --web --port 8080 --host 0.0.0.0
+```
+
+3. Access the interface at `http://localhost:7860` (or your specified port)
+
+### Example Discussion
+
+```bash
+$ consensus-engine
+Enter your prompt: What is the best way to learn programming?
+
+🚀 Starting consensus discussion...
+📍 Starting PRE_FLOP round...
+🤖 OpenAI thinking...
+🤖 Anthropic thinking...
+...
+```
+
+## Testing
+
+Run the test suite:
+```bash
+# Install test dependencies
+pip install pytest pytest-asyncio pytest-mock pytest-cov
+
+# Run all tests
+pytest
+
+# Run specific test categories
+pytest -m "not integration"  # Unit tests only
+pytest -m integration       # Integration tests only
+pytest tests/test_interfaces.py  # Interface tests
+```
+
+See `/tests/README.md` for detailed testing documentation.
+
+## Project Structure
+
+```
+consensus-engine/
+├── src/
+│   └── consensus_engine/
+│       ├── config/          # Configuration files
+│       ├── models/          # LLM implementations
+│       ├── database/        # Database models
+│       └── protocols/       # Consensus protocols
+├── tests/                   # Test suite
+└── examples/                # Usage examples
+```
+
+## Round-Based Discussion Flow
+
+1. **PRE_FLOP**:
+   - Initial problem understanding
+   - Constraint identification
+   - Preliminary position establishment
+
+2. **FLOP**:
+   - Evidence presentation
+   - Initial agreement areas
+   - Key differences identification
+
+3. **TURN**:
+   - Evidence analysis
+   - Position refinement
+   - Compromise exploration
+
+4. **RIVER**:
+   - Final position synthesis
+   - Resolution of differences
+   - Consensus building
+
+5. **SHOWDOWN**:
+   - Final position statement
+   - Implementation details
+   - Any remaining disagreements
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch:
+```bash
+git checkout -b feature/your-feature-name
+```
+
+3. Make your changes and commit:
+```bash
+git commit -m "Add your feature description"
+```
+
+4. Push to your fork:
+```bash
+git push origin feature/your-feature-name
+```
+
+5. Create a Pull Request
+
+### Development Setup
+
+1. Install development dependencies:
+```bash
+pip install -e ".[dev]"
+```
+
+2. Set up pre-commit hooks:
+```bash
+pre-commit install
+```
+
+## Response Format
+
+LLMs are prompted to provide structured responses:
+
+```
+UNDERSTANDING: [Problem interpretation]
+CONSTRAINTS: [Key limitations]
+POSITION: [Current stance]
+CONFIDENCE: [0.0-1.0 with justification]
+EVIDENCE: [Supporting information]
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **API Key Errors**:
+   - Verify environment variables are set
+   - Check API key validity
+   - Ensure sufficient API credits
+
+2. **NLTK Resource Errors**:
+   - The package automatically downloads required NLTK data
+   - Manual download: `python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords')"`
+
+3. **Port Conflicts**:
+   - Default port (7860) in use: Use `--port` to specify different port
+   - Permission denied: Try a port number > 1024
+
+### Debug Mode
+
+Enable debug logging:
+```bash
+export CONSENSUS_ENGINE_LOG_LEVEL=DEBUG
+consensus-engine --debug
+```
+
+## License
+
+MIT License - see LICENSE file for details
+
+## Documentation
+
+- `config/settings.py`: Configuration options
+- `docs/`: Detailed documentation (coming soon)
+- `examples/`: Usage examples
+- `tests/README.md`: Testing documentation
+
+## Citing
+
+If you use Consensus Engine in your research, please cite:
+
+```bibtex
+@software{consensus_engine,
+  title = {Consensus Engine},
+  author = {Your Name},
+  year = {2024},
+  url = {https://github.com/yourusername/consensus-engine}
+}
+```
+
+## Contact
+
+- Issues: Use GitHub Issues
+- Questions: Start a GitHub Discussion
+- Security concerns: See SECURITY.md
+#.gitignore
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+#   For a library or package, you might want to ignore these files since the code is
+#   intended to run in multiple environments; otherwise, check them in:
+# .python-version
+
+# pipenv
+#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
+#   However, in case of collaboration, if having platform-specific dependencies or dependencies
+#   having no cross-platform support, pipenv may install dependencies that don't work, or not
+#   install all needed dependencies.
+#Pipfile.lock
+
+# poetry
+#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
+#   This is especially recommended for binary packages to ensure reproducibility, and is more
+#   commonly ignored for libraries.
+#   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
+#poetry.lock
+
+# pdm
+#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
+#pdm.lock
+#   pdm stores project-wide configurations in .pdm.toml, but it is recommended to not include it
+#   in version control.
+#   https://pdm.fming.dev/latest/usage/project/#working-with-version-control
+.pdm.toml
+.pdm-python
+.pdm-build/
+
+# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# PyCharm
+#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
+#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
+#  and can be added to the global gitignore or merged into this file.  For a more nuclear
+#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
+#.idea/
+
+# dont track db files
+*.db
+
+# dont track specific shell scripts
+dir.sh
+
+# dont track query.txt
+*queries/
+query.txt
+
+#.github/workflows/released.yaml
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*' # Matches version tags like v1.0.0
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+
+    - name: Install dependencies for build
+      run: |
+        python -m venv venv
+        source venv/bin/activate
+        pip install -U pip
+        pip install build twine
+
+    - name: Build package
+      run: |
+        source venv/bin/activate
+        python -m build
+
+    - name: Publish to PyPI
+      env:
+        TWINE_USERNAME: ${{ secrets.TWINE_USERNAME }}
+        TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
+      run: |
+        source venv/bin/activate
+        python -m twine upload dist/*
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          dist/*
+#.github/workflows/test-on-pr.yaml
+name: Run Tests on Pull Requests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+
+    - name: Install dependencies
+      run: |
+        python -m venv venv
+        source venv/bin/activate
+        pip install -U pip
+        pip install .
+        pip install pytest pytest-asyncio pytest-cov
+
+    - name: Run tests
+      run: |
+        source venv/bin/activate
+        pytest tests --tb=short --cov=src/consensus_engine --cov-report=term-missing
+#dir.sh
+#!/bin/bash
+
+# Check if directory path is provided
+if [ $# -ne 1 ]; then
+    echo "Usage: $0 <directory_path>"
+    exit 1
+fi
+
+# Get directory path and name
+DIR_PATH=$(realpath "$1")
+DIR_NAME=$(basename "$DIR_PATH")
+OUTPUT_FILE="${DIR_PATH}/project-structure.txt"
+
+# Check if directory exists
+if [ ! -d "$DIR_PATH" ]; then
+    echo "Error: Directory does not exist"
+    exit 1
+fi
+
+# Check if tree command is available
+if ! command -v tree &> /dev/null; then
+    echo "Error: 'tree' command not found. Please install it first."
+    exit 1
+fi
+
+# Generate directory structure with find and exclude unwanted files/directories
+{
+    echo "$DIR_PATH"
+    find "$DIR_PATH" \
+        -path "*/.git" -prune -o \
+        -path "*/.venv" -prune -o \
+        -path "*/__pycache__" -prune -o \
+        -path "*/node_modules" -prune -o \
+        -path "*/.terraform*" -prune -o \
+        -path "*/.idea" -prune -o \
+        -path "*/venv" -prune -o \
+        -path "*/env" -prune -o \
+        -path "*/dist" -prune -o \
+        -path "*/build" -prune -o \
+        -path "*/*.egg-info" -prune -o \
+        -name "*.pyc" -prune -o \
+        -name "*.pyo" -prune -o \
+        -name "*.pyd" -prune -o \
+        -name "*.so" -prune -o \
+        -name "*.log" -prune -o \
+        -name "*.lock" -prune -o \
+        -name "*.tmp" -prune -o \
+        -name "*.DS_Store" -prune -o \
+        -name "*.env" -prune -o \
+        -name "*.swp" -prune -o \
+        -print | sort
+} | sed -e "s;$DIR_PATH;.;g" > "$OUTPUT_FILE"
+
+# Add a separator and tree view
+echo -e "\n=== Tree View ===\n" >> "$OUTPUT_FILE"
+
+# Generate tree view excluding system and venv files
+tree -I '.git|.venv|__pycache__|node_modules|.terraform*|.idea|venv|env|dist|build|*.egg-info|*.pyc|*.pyo|*.pyd|*.so|*.log|*.lock|*.tmp|.DS_Store|*.env|*.swp' "$DIR_PATH" >> "$OUTPUT_FILE"
+
+# Add a separator for file contents
+echo -e "\n=== File Contents ===\n" >> "$OUTPUT_FILE"
+
+# Include all project files with content, excluding system and venv files
+find "$DIR_PATH" -type f \
+    -not -path "*/.git/*" \
+    -not -path "*/.venv/*" \
+    -not -path "*/__pycache__/*" \
+    -not -path "*/node_modules/*" \
+    -not -path "*/.terraform*/*" \
+    -not -path "*/.idea/*" \
+    -not -path "*/venv/*" \
+    -not -path "*/env/*" \
+    -not -path "*/dist/*" \
+    -not -path "*/build/*" \
+    -not -path "*/*.egg-info/*" \
+    -not -name "*.pyc" \
+    -not -name "*.pyo" \
+    -not -name "*.pyd" \
+    -not -name "*.so" \
+    -not -name "*.log" \
+    -not -name "*.lock" \
+    -not -name "*.tmp" \
+    -not -name "*.DS_Store" \
+    -not -name "*.env" \
+    -not -name "*.swp" \
+    -not -name "$(basename "$OUTPUT_FILE")" \
+    -print0 | \
+    while IFS= read -r -d "" file; do
+        # Get relative path from the directory
+        rel_path="${file#$DIR_PATH/}"
+        
+        # Check if the file is binary
+        if file "$file" | grep -q "text"; then
+            # Add file header and contents to output file
+            echo -e "\n#$rel_path" >> "$OUTPUT_FILE"
+            cat "$file" >> "$OUTPUT_FILE"
+        else
+            # For binary files, note that contents are excluded
+            echo -e "\n#$rel_path (binary file - contents excluded)" >> "$OUTPUT_FILE"
+        fi
+    done
+
+echo "Directory snapshot has been saved to: $OUTPUT_FILE"
+#src/consensus_engine/deliberation/validators.py
+"""Validation utilities for consensus engine."""
+from typing import Dict, Any, List
+from ..database.models import RoundType
+
+def validate_response_format(response: Dict[str, Any], round_type: RoundType) -> bool:
+    """Validate response format for a given round."""
+    required_fields = {
+        RoundType.PRE_FLOP: ['UNDERSTANDING', 'CONSTRAINTS', 'INITIAL_POSITION', 'CONFIDENCE'],
+        RoundType.FLOP: ['AGREEMENTS', 'DIFFERENCES', 'EVIDENCE', 'POSITION', 'CONFIDENCE'],
+        RoundType.TURN: ['EVIDENCE_ANALYSIS', 'POSITION_UPDATE', 'COMPROMISE_AREAS', 'CONFIDENCE'],
+        RoundType.RIVER: ['SYNTHESIS', 'RESOLUTION', 'REMAINING_ISSUES', 'CONFIDENCE'],
+        RoundType.SHOWDOWN: ['FINAL_POSITION', 'IMPLEMENTATION', 'CONFIDENCE', 'DISSENTING_VIEWS']
+    }
+    
+    return all(field in response for field in required_fields[round_type])
+
+def validate_confidence_score(confidence: float) -> bool:
+    """Validate confidence score."""
+    return isinstance(confidence, (int, float)) and 0 <= confidence <= 1
+
+def validate_round_sequence(sequence: List[RoundType]) -> bool:
+    """Validate round sequence."""
+    expected_sequence = [
+        RoundType.PRE_FLOP,
+        RoundType.FLOP,
+        RoundType.TURN,
+        RoundType.RIVER,
+        RoundType.SHOWDOWN
+    ]
+    return sequence == expected_sequence
+
+#src/consensus_engine/deliberation/__init__.py (binary file - contents excluded)
+
+#src/consensus_engine/deliberation/round_manager.py
+"""Round management for consensus engine."""
+from typing import Dict, Any, Optional
+from ..database.models import RoundType, DiscussionRound
+from ..protocols.base_protocol import BaseConsensusProtocol
+import logging
+
+logger = logging.getLogger(__name__)
+
+class RoundManager:
+    def __init__(self, protocol: BaseConsensusProtocol):
+        self.protocol = protocol
+        self.current_round = None
+        self.round_history = []
+        
+    def start_round(self, round_type: RoundType) -> Dict[str, Any]:
+        """Initialize a new round."""
+        self.current_round = {
+            'type': round_type,
+            'responses': {},
+            'metadata': {},
+            'requirements': self.protocol.get_round_requirements(round_type)
+        }
+        return self.current_round
+    
+    def add_response(self, llm_name: str, response: Dict[str, Any]) -> None:
+        """Add a response to the current round."""
+        if not self.current_round:
+            raise ValueError("No active round")
+        self.current_round['responses'][llm_name] = response
+        
+    def can_proceed(self) -> bool:
+        """Check if round can proceed to next stage."""
+        if not self.current_round:
+            return False
+            
+        next_rounds = self.protocol.get_round_sequence()
+        current_idx = next_rounds.index(self.current_round['type'])
+        
+        if current_idx >= len(next_rounds) - 1:
+            return False
+            
+        next_round = next_rounds[current_idx + 1]
+        return self.protocol.validate_round_transition(
+            self.current_round['type'],
+            next_round,
+            self.current_round
+        )
+    
+    def complete_round(self) -> Dict[str, Any]:
+        """Complete current round and prepare for next."""
+        if not self.current_round:
+            raise ValueError("No active round")
+            
+        round_data = self.current_round.copy()
+        self.round_history.append(round_data)
+        self.current_round = None
+        return round_data
+
+#src/consensus_engine/database/models.py
+"""Database models for the Consensus Engine."""
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Float
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
+import datetime
+
+Base = declarative_base()
+
+class Discussion(Base):
+    __tablename__ = 'discussions'
+    
+    id = Column(Integer, primary_key=True)
+    prompt = Column(Text, nullable=False)
+    started_at = Column(DateTime, default=datetime.datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+    consensus_reached = Column(Integer, default=0)
+    final_consensus = Column(Text, nullable=True)
+    
+    rounds = relationship("DiscussionRound", back_populates="discussion")
+
+class DiscussionRound(Base):
+    __tablename__ = 'discussion_rounds'
+    
+    id = Column(Integer, primary_key=True)
+    discussion_id = Column(Integer, ForeignKey('discussions.id'))
+    round_number = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    
+    discussion = relationship("Discussion", back_populates="rounds")
+    responses = relationship("LLMResponse", back_populates="round")
+
+class LLMResponse(Base):
+    __tablename__ = 'llm_responses'
+    
+    id = Column(Integer, primary_key=True)
+    round_id = Column(Integer, ForeignKey('discussion_rounds.id'))
+    llm_name = Column(String(100), nullable=False)
+    response_text = Column(Text, nullable=False)
+    confidence_score = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    
+    round = relationship("DiscussionRound", back_populates="responses")
+#src/consensus_engine/database/__init__.py
+"""Database models and utilities for the consensus engine."""
+from .models import Base, Discussion, DiscussionRound, LLMResponse
+
+__all__ = ['Base', 'Discussion', 'DiscussionRound', 'LLMResponse']
+
+#src/consensus_engine/web.py
+"""Web interface for the Consensus Engine using Gradio."""
+import gradio as gr
+import asyncio
+import os
+import socket
+import logging
+import signal
+import sys
+from datetime import datetime
+from sqlalchemy import create_engine, desc
+from sqlalchemy.orm import sessionmaker
+from difflib import SequenceMatcher
+from .engine import ConsensusEngine
+from .models.openai import OpenAILLM
+from .models.anthropic import AnthropicLLM
+from .database.models import Base, Discussion, DiscussionRound
+from .config.round_config import ROUND_SEQUENCE, ROUND_CONFIGS
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
+
+def get_db_session():
+    """Initialize and return a database session."""
+    database_url = os.getenv("CONSENSUS_ENGINE_DB_URL", "sqlite:///consensus_engine.db")
+    engine = create_engine(database_url)
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    return Session()
+
+def find_available_port(start_port: int, max_attempts: int = 100) -> int:
+    """Find an available port starting from start_port."""
+    for port in range(start_port, start_port + max_attempts):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('', port))
+                return port
+        except OSError:
+            continue
+    raise RuntimeError(f"Could not find an available port after {max_attempts} attempts")
+
+class GradioInterface:
+    def __init__(self):
+        self.openai_key = os.getenv("OPENAI_API_KEY")
+        self.anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+        if not self.openai_key or not self.anthropic_key:
+            raise ValueError("Missing API keys. Please set OPENAI_API_KEY and ANTHROPIC_API_KEY environment variables.")
+        
+        self.llms = [
+            OpenAILLM(self.openai_key),
+            AnthropicLLM(self.anthropic_key)
+        ]
+        self.db_session = get_db_session()
+        self.engine = ConsensusEngine(self.llms, self.db_session)
+
+        # Instagram-inspired colors using Gradio's theme system
+        self.theme = gr.Theme.from_hub("gradio/soft")
+        self.theme.font = gr.themes.GoogleFont("Inter")
+        self.theme.set(
+            background_fill_primary="#FFFFFF",
+            background_fill_secondary="#F8F9FA",
+            border_color_accent="#E4405F",
+            border_color_primary="#E4E4E4",
+            color_accent="#833AB4",
+            button_primary_background_fill="linear-gradient(45deg, #833AB4, #E1306C)",
+            button_primary_background_fill_hover="linear-gradient(45deg, #E1306C, #833AB4)",
+            button_primary_text_color="#FFFFFF",
+            button_secondary_background_fill="#FCAF45",
+            button_secondary_background_fill_hover="#FD1D1D",
+            button_secondary_text_color="#FFFFFF"
+        )
+
+    def format_timestamp(self, timestamp):
+        return timestamp.strftime("%Y-%m-%d %H:%M:%S") if timestamp else "N/A"
+
+    def get_discussion_title(self, prompt: str) -> str:
+        """Generate a readable title for a discussion."""
+        if len(prompt) > 40:
+            title = prompt[:40].rsplit(' ', 1)[0] + "..."
+        else:
+            title = prompt
+        return title.strip()
+
+    def get_discussion_history(self):
+        """Get list of past discussions."""
+        discussions = self.db_session.query(Discussion).order_by(desc(Discussion.started_at)).all()
+        return [
+            {"label": self.get_discussion_title(d.prompt), "value": str(d.id)}
+            for d in discussions
+        ]
+
+    def load_discussion(self, selected):
+        """Load a past discussion's details."""
+        if not selected:
+            return "", ""
+        
+        try:
+            # Get discussion by ID, handling both string and dict inputs
+            disc_id = selected["value"] if isinstance(selected, dict) else str(selected)
+            discussion = self.db_session.query(Discussion).filter(Discussion.id == disc_id).first()
+            
+            if not discussion:
+                return "", f"Discussion not found for ID: {disc_id}"
+
+            output = []
+            output.append(f"Original Prompt: {discussion.prompt}\n")
+            output.append(f"Started: {self.format_timestamp(discussion.started_at)}")
+            output.append(f"Status: {'Consensus Reached' if discussion.consensus_reached else 'No Consensus'}\n")
+
+            for round in discussion.rounds:
+                round_type = ROUND_SEQUENCE[round.round_number]
+                output.append(f"\n=== Round {round.round_number + 1}: {round_type} ===")
+                for response in round.responses:
+                    output.append(f"\n🤖 {response.llm_name} (Confidence: {response.confidence_score:.2f}):")
+                    output.append(response.response_text)
+                    output.append("-" * 40)
+
+            if discussion.consensus_reached and discussion.final_consensus:
+                output.append("\n✨ Final Consensus:")
+                output.append(discussion.final_consensus)
+
+            return discussion.prompt, "\n".join(output)
+            
+        except Exception as e:
+            logger.error(f"Error loading discussion: {e}")
+            return "", f"Error loading discussion: {str(e)}"
+
+    async def _run_discussion(self, prompt):
+        """Run a discussion using the consensus engine."""
+        if not prompt.strip():
+            return "Please enter a prompt to start the discussion."
+
+        try:
+            current_output = []
+
+            def progress_callback(msg: str):
+                nonlocal current_output
+                
+                if "Starting consensus discussion" in msg:
+                    current_output.append("\n🎲 Starting new discussion...")
+                    current_output.append(f"Query: {prompt}\n")
+                    current_output.append("=" * 50)
+                    
+                elif any(round_type in msg for round_type in ROUND_SEQUENCE):
+                    round_type = next(rt for rt in ROUND_SEQUENCE if rt in msg)
+                    config = ROUND_CONFIGS[round_type]
+                    current_output.append(f"\n\n🎲 Round: {round_type}")
+                    current_output.append(f"Stage: {config['name']}")
+                    current_output.append(f"Target confidence: {config['required_confidence']:.2f}")
+                    current_output.append("-" * 50)
+                    
+                elif "Getting" in msg and "'s response" in msg:
+                    llm_name = msg.split("Getting")[1].split("'s")[0].strip()
+                    current_output.append(f"\n> {llm_name} is thinking... 🤔")
+                    
+                elif "response\n" in msg and "confidence:" in msg:
+                    parts = msg.split("response\n")
+                    llm_name = parts[0].strip()
+                    response_content = parts[1].split("\nconfidence:")[0].strip()
+                    confidence = float(parts[1].split("confidence:")[1].strip())
+                    
+                    current_output.append(f"> {llm_name} responded:")
+                    current_output.append("-" * 30)
+                    current_output.append(response_content)
+                    current_output.append("-" * 30)
+                    current_output.append(f"Confidence: {confidence:.2f} ✓\n")
+                    
+                elif "Round" in msg and "results:" in msg:
+                    current_output.append(msg)
+                else:
+                    current_output.append(msg)
+
+                return "\n".join(current_output)
+
+            result = await self.engine.discuss(prompt, progress_callback)
+            
+            if isinstance(result, dict) and "consensus" in result:
+                current_output.append("\n\n🏆 Consensus Reached!")
+                current_output.append("=" * 50)
+                current_output.append("\nFinal Consensus:")
+                current_output.append("-" * 50)
+                current_output.append(result["consensus"])
+                current_output.append("\nIndividual Final Positions:")
+                current_output.append("-" * 50)
+                for name, response in result["individual_responses"].items():
+                    current_output.append(f"\n{name}:")
+                    current_output.append(response)
+            else:
+                current_output.append("\n\n❌ No Consensus Reached")
+                current_output.append("=" * 50)
+                
+                # Extract and compare final positions
+                positions = {}
+                for name, response in result.items():
+                    if "FINAL_POSITION:" in response:
+                        position = response.split("FINAL_POSITION:")[1].split("IMPLEMENTATION:")[0].strip()
+                        positions[name] = position
+
+                if len(positions) >= 2:
+                    similarity = SequenceMatcher(None, 
+                        positions[list(positions.keys())[0]], 
+                        positions[list(positions.keys())[1]]
+                    ).ratio()
+                    current_output.append(f"\nFinal position similarity: {similarity:.2%}")
+                    current_output.append(f"Required threshold: {self.engine.consensus_threshold:.2%}")
+                    if similarity >= self.engine.consensus_threshold:
+                        current_output.append("\nNote: Final positions appear to agree, but full responses differ.")
+                
+                current_output.append("\nFinal Positions:")
+                current_output.append("-" * 50)
+                for name, response in result.items():
+                    current_output.append(f"\n{name}:")
+                    current_output.append(response)
+
+            return "\n".join(current_output)
+
+        except Exception as e:
+            logger.error(f"Error during discussion: {e}", exc_info=True)
+            return f"Error during discussion: {str(e)}"
+
+    def create_interface(self):
+        """Create the Gradio interface."""
+        interface = gr.Blocks(title="LLM Consensus Engine", theme=self.theme)
+        
+        with interface:
+            gr.Markdown("""
+            # LLM Consensus Engine
+            Facilitating structured discussions between multiple language models.
+            """)
+            
+            with gr.Row():
+                # Left column for history
+                with gr.Column(scale=1):
+                    history_dropdown = gr.Dropdown(
+                        label="Previous Discussions",
+                        choices=self.get_discussion_history(),
+                        interactive=True,
+                        value=None,
+                        container=False
+                    )
+                    refresh_btn = gr.Button("🔄 Refresh History", size="sm")
+
+                # Right column for main content
+                with gr.Column(scale=3):
+                    prompt_input = gr.Textbox(
+                        label="Enter your prompt",
+                        placeholder="What would you like the LLMs to discuss?",
+                        lines=3
+                    )
+                    with gr.Row():
+                        submit_btn = gr.Button("Start Discussion", variant="primary")
+                        clear_btn = gr.Button("Clear", variant="secondary")
+
+            output_box = gr.Textbox(
+                label="Discussion Progress",
+                lines=25,
+                show_copy_button=True,
+                interactive=False
+            )
+
+            def clear_outputs():
+                return ["", ""]
+
+            def refresh_history():
+                new_choices = self.get_discussion_history()
+                return gr.Dropdown(choices=new_choices)
+
+            # Event handlers
+            history_dropdown.change(
+                fn=self.load_discussion,
+                inputs=[history_dropdown],
+                outputs=[prompt_input, output_box]
+            )
+
+            refresh_btn.click(
+                fn=refresh_history,
+                outputs=[history_dropdown]
+            )
+
+            submit_btn.click(
+                fn=self._run_discussion,
+                inputs=[prompt_input],
+                outputs=[output_box]
+            )
+
+            clear_btn.click(
+                fn=clear_outputs,
+                outputs=[prompt_input, output_box]
+            )
+
+        return interface
+
+    def launch(self, host=None, port=None, debug=False):
+        """Launch the Gradio interface."""
+        try:
+            host = host if host else "127.0.0.1"
+            start_port = port if port else 7866
+            
+            try:
+                port = find_available_port(start_port)
+                logger.info(f"Found available port: {port}")
+            except RuntimeError as e:
+                logger.error(f"Port finding failed: {e}")
+                port = start_port  # Fall back to original port and let Gradio handle it
+            
+            interface = self.create_interface()
+            interface.launch(
+                server_port=port,
+                server_name=host,
+                debug=debug,
+                show_api=False,
+                share=False,
+                inbrowser=True
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to start web interface: {e}", exc_info=True)
+            raise
+
+def main():
+    """Main entry point for the web interface."""
+    try:
+        app = GradioInterface()
+        app.launch()
+    except KeyboardInterrupt:
+        logger.info("\nShutdown requested... exiting")
+        sys.exit(0)
+    except Exception as e:
+        logger.error(f"Error starting interface: {e}", exc_info=True)
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
+
+#src/consensus_engine/config/__init__.py (binary file - contents excluded)
+
+#src/consensus_engine/config/round_config.py
+"""Round configuration for the Consensus Engine."""
+
+CONFIDENCE_GUIDANCE = """
+Confidence Guidelines (0.0-1.0):
+- Base your confidence on agreement with other participants
+- Consider how close your position is to others
+- Account for shared evidence and reasoning
+- Confidence should reflect likelihood of consensus
+
+Current consensus metrics:
+- Text similarity between responses
+- Code similarity (for programming solutions)
+- Shared evidence and citations 
+- Common terminology and framing
+
+Your confidence score impacts consensus:
+- Higher scores (>0.8) require strong alignment with others
+- Medium scores (0.5-0.7) show potential for consensus
+- Lower scores (<0.5) indicate significant differences
+"""
+
+ROUND_CONFIGS = {
+    "PRE_FLOP": {
+        "name": "Initial Understanding",
+        "required_confidence": 0.0,
+        "max_duration": 300,
+        "requirements": {
+            "min_participants": 2,
+            "evidence_required": False
+        },
+        "consensus_guidance": """
+        In this round:
+        1. Focus on shared understanding and terminology
+        2. Note areas of agreement and disagreement
+        3. Current similarity score: {similarity}
+        4. Average confidence: {avg_confidence}
+        5. Consensus requires {consensus_threshold} similarity
+        
+        To increase consensus likelihood:
+        - Use consistent terminology
+        - Frame the problem similarly to others
+        - Build on shared understanding
+        """
+    },
+    "FLOP": {
+        "name": "Opening Analysis",
+        "required_confidence": 0.5,
+        "max_duration": 600,
+        "requirements": {
+            "min_participants": 2,
+            "evidence_required": True
+        },
+        "consensus_guidance": """
+        Progress metrics:
+        1. Current similarity: {similarity}
+        2. Required similarity: {consensus_threshold}
+        3. Group confidence: {avg_confidence}
+        4. Main differences: {key_differences}
+        
+        To align positions:
+        - Reference shared evidence
+        - Address key differences
+        - Use similar structure and terminology
+        """
+    },
+    "TURN": {
+        "name": "Position Refinement",
+        "required_confidence": 0.6,
+        "max_duration": 600,
+        "requirements": {
+            "min_participants": 2,
+            "evidence_required": True
+        },
+        "consensus_guidance": """
+        Current metrics:
+        1. Similarity score: {similarity}
+        2. Consensus target: {consensus_threshold}
+        3. Response alignment: {alignment_areas}
+        4. Outstanding issues: {remaining_issues}
+        
+        Focus areas:
+        - Resolve remaining differences
+        - Strengthen shared positions
+        - Match successful patterns
+        """
+    },
+    "RIVER": {
+        "name": "Consensus Building",
+        "required_confidence": 0.7,
+        "max_duration": 600,
+        "requirements": {
+            "min_participants": 2,
+            "evidence_required": True
+        },
+        "consensus_guidance": """
+        Consensus status:
+        1. Current similarity: {similarity}
+        2. Target threshold: {consensus_threshold}
+        3. Group confidence: {avg_confidence}
+        4. Key alignments: {key_alignments}
+        
+        For code solutions:
+        - Match structure and patterns
+        - Use consistent variable names
+        - Follow same error handling
+        - Aim for identical output format
+        """
+    },
+    "SHOWDOWN": {
+        "name": "Final Resolution",
+        "required_confidence": 0.75,
+        "max_duration": 300,
+        "requirements": {
+            "min_participants": 2,
+            "evidence_required": True
+        },
+        "consensus_guidance": """
+        Final metrics:
+        1. Current similarity: {similarity}
+        2. Required for consensus: {consensus_threshold}
+        3. Collective confidence: {avg_confidence}
+        
+        For consensus approval:
+        - Responses must be {consensus_threshold} similar
+        - Code solutions must be functionally identical
+        - Using same terminology and structure
+        - Sharing core evidence and reasoning
+        """
+    }
+}
+
+RESPONSE_FORMAT = {
+    "PRE_FLOP": """
+    Format your response:
+    UNDERSTANDING: [Problem interpretation]
+    CONSTRAINTS: [Key limitations]
+    INITIAL_POSITION: [Starting stance]
+    CONFIDENCE: [0.0-1.0 score + why]
+    """,
+    
+    "FLOP": """
+    Format your response:
+    SHARED_GROUND: [Common understanding]
+    DIFFERENCES: [Areas to resolve]
+    EVIDENCE: [Supporting information]
+    UPDATED_POSITION: [Current stance]
+    CONFIDENCE: [0.0-1.0 score + justification]
+    """,
+    
+    "TURN": """
+    Format your response:
+    PROGRESS: [Consensus development]
+    ALIGNMENTS: [Agreement areas]
+    RESOLUTION: [Difference handling]
+    POSITION: [Updated stance]
+    CONFIDENCE: [0.0-1.0 score + reasoning]
+    """,
+    
+    "RIVER": """
+    Format your response:
+    SYNTHESIS: [Combined position]
+    IMPLEMENTATION: [Solution details]
+    REMAINING_ISSUES: [Final concerns]
+    CONFIDENCE: [0.0-1.0 score + rationale]
+    """,
+    
+    "SHOWDOWN": """
+    Format your response:
+    FINAL_POSITION: [Complete solution]
+    IMPLEMENTATION: [Full details/code]
+    CONFIDENCE: [0.0-1.0 score + explanation]
+    """
+}
+
+# Sequence preservation
+ROUND_SEQUENCE = ["PRE_FLOP", "FLOP", "TURN", "RIVER", "SHOWDOWN"]
+
+# Code-specific guidance
+CODE_CONSENSUS_GUIDANCE = """
+For code solutions:
+1. Match structure and organization
+2. Use identical:
+   - Variable names
+   - Function signatures
+   - Error handling
+   - Comment style
+3. Produce same output format
+4. Follow same patterns
+"""
+
+for config in ROUND_CONFIGS.values():
+    if "consensus_guidance" in config:
+        config["consensus_guidance"] = config["consensus_guidance"].strip()
+
+__all__ = ['ROUND_CONFIGS', 'RESPONSE_FORMAT', 'ROUND_SEQUENCE', 'CONFIDENCE_GUIDANCE', 'CODE_CONSENSUS_GUIDANCE']
+#src/consensus_engine/config/settings.py
+"""Configuration settings for the Consensus Engine."""
+import os
+import logging
+from typing import Dict, Any
+
+# Model Settings, can add another model by adding a new key to the dictionary
+MODEL_CONFIGS = {
+    "openai": {
+        "enabled": True,
+        "api_key_env": "OPENAI_API_KEY",
+        "model": "gpt-4-turbo-preview",
+        "temperature": 0.7,
+        "max_tokens": 2000,
+        "module_path": "consensus_engine.models.openai",
+        "class_name": "OpenAILLM",
+        "system_prompt": """You are a cooperative AI participating in a multi-AI consensus discussion. 
+        Your goal is to collaboratively identify common ground and efficiently produce a clear, 
+        concise, and actionable response to the original query.
+        
+        When providing confidence scores:
+        1. Always use the 0.0-1.0 scale
+        2. Base scores on objective criteria
+        3. Consider implementation completeness
+        4. Account for error handling and edge cases
+        5. Justify your confidence score with specific reasons
+        
+        Higher confidence (0.8+) should only be given when:
+        - Solution is complete and well-tested
+        - All edge cases are handled
+        - Implementation follows best practices
+        - You can verify correctness
+        
+        Lower confidence (<0.7) when:
+        - Solution is partial or untested
+        - Edge cases are not handled
+        - Implementation is basic or unoptimized
+        - Significant assumptions are made
+        
+        When code is requested:
+        1. ALWAYS provide complete, working code in properly formatted code blocks
+        2. Use consistent naming conventions and formatting
+        3. Include error handling and comments
+        4. Match other participants' code structure when building consensus
+        
+        Format responses according to the round template, ensuring all required sections are included.
+        """
+    },
+    "anthropic": {
+        "enabled": True,
+        "api_key_env": "ANTHROPIC_API_KEY",
+        "model": "claude-3-sonnet-20240229",
+        "temperature": 0.7,
+        "max_tokens": 2000,
+        "module_path": "consensus_engine.models.anthropic",
+        "class_name": "AnthropicLLM",
+        "system_prompt": """You are a cooperative AI participating in a multi-AI consensus discussion. 
+        Your goal is to collaboratively identify common ground and efficiently produce a clear, 
+        concise, and actionable response to the original query.
+        
+        When providing confidence scores:
+        1. Always use the 0.0-1.0 scale
+        2. Base scores on objective criteria
+        3. Consider implementation completeness
+        4. Account for error handling and edge cases
+        5. Justify your confidence score with specific reasons
+        
+        Higher confidence (0.8+) should only be given when:
+        - Solution is complete and well-tested
+        - All edge cases are handled
+        - Implementation follows best practices
+        - You can verify correctness
+        
+        Lower confidence (<0.7) when:
+        - Solution is partial or untested
+        - Edge cases are not handled
+        - Implementation is basic or unoptimized
+        - Significant assumptions are made
+        
+        When code is requested:
+        1. ALWAYS provide complete, working code in properly formatted code blocks
+        2. Use consistent naming conventions and formatting
+        3. Include error handling and comments
+        4. Match other participants' code structure when building consensus
+        
+        Format responses according to the round template, ensuring all required sections are included.
+        """
+    }
+}
+
+# Consensus Settings
+CONSENSUS_SETTINGS = {
+    "max_iterations": 4,
+    "consensus_threshold": 0.65,
+    "min_models": 2,
+    "max_models": 5,
+}
+
+# Logging Settings
+LOG_LEVEL = os.getenv("CONSENSUS_ENGINE_LOG_LEVEL", "WARNING")
+LOG_FORMAT = '%(message)s'
+DETAILED_LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
+
+def get_enabled_models() -> Dict[str, Dict[str, Any]]:
+    """Get configurations for all enabled models."""
+    return {name: config for name, config in MODEL_CONFIGS.items() if config["enabled"]}
+
+def validate_model_config(config: Dict[str, Any]) -> bool:
+    """Validate that a model configuration has all required fields."""
+    required_fields = [
+        "api_key_env", "model", "temperature", "max_tokens",
+        "module_path", "class_name", "system_prompt"
+    ]
+    return all(field in config for field in required_fields)
+
+def get_api_key(config: Dict[str, Any]) -> str:
+    """Get API key for a model from environment variables."""
+    api_key = os.getenv(config["api_key_env"])
+    if not api_key:
+        raise ValueError(f"Missing API key: {config['api_key_env']} environment variable not set")
+    return api_key
+
+# Convert string log level to logging constant
+LOG_LEVEL_MAP = {
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "ERROR": logging.ERROR,
+    "CRITICAL": logging.CRITICAL
+}
+
+LOG_LEVEL_NUM = LOG_LEVEL_MAP.get(LOG_LEVEL.upper(), logging.INFO)
+#src/consensus_engine/__init__.py
+"""Initialize NLTK resources and setup for consensus engine."""
+import os
+import logging
+import nltk
+
+logger = logging.getLogger(__name__)
+
+def setup_nltk():
+    """Download and set up required NLTK resources."""
+    try:
+        # Create NLTK data directory in user's home
+        nltk_data_dir = os.path.join(os.path.expanduser("~"), "nltk_data")
+        os.makedirs(nltk_data_dir, exist_ok=True)
+        
+        # Download required resources
+        for resource in ['punkt', 'stopwords']:
+            try:
+                nltk.download(resource, quiet=True, download_dir=nltk_data_dir)
+                logger.info(f"Successfully downloaded {resource}")
+            except Exception as e:
+                logger.warning(f"Failed to download {resource}: {e}")
+                continue
+        
+        logger.info("NLTK resources initialized successfully!")
+        return True
+        
+    except Exception as e:
+        logger.warning(f"NLTK initialization failed: {e}")
+        return False
+
+# Run setup when module is imported
+setup_nltk()
+#src/consensus_engine/utils/__init__.py
+"""Utility functions and classes for the consensus engine."""
+from .response_parser import ResponseParser
+
+__all__ = ['ResponseParser']
+
+#src/consensus_engine/utils/response_parser.py
+"""Utilities for parsing LLM responses."""
+from typing import Dict, Any, Optional
+import re
+
+class ResponseParser:
+    @staticmethod
+    def validate_code_response(response: str) -> bool:
+        """Validate code blocks in response."""
+        # Check for code block markers
+        has_code_blocks = "```" in response
+        
+        # Check for language specification
+        has_language = bool(re.search(r"```\w+", response))
+        
+        # Check for implementation details
+        has_implementation = "IMPLEMENTATION:" in response
+        
+        return has_code_blocks and has_language and has_implementation
+
+    @staticmethod
+    def parse_structured_response(response: str) -> Dict[str, Any]:
+        """Parse a structured response into components."""
+        components = {}
+        current_section = None
+        current_content = []
+        
+        # Check if this appears to be a code request
+        code_requested = bool(re.search(r"how to|write code|implement|create a", response.lower()))
+        
+        for line in response.split('\n'):
+            line = line.strip()
+            if not line:
+                continue
+                
+            # Check for section headers
+            if ':' in line and line.split(':')[0].upper() == line.split(':')[0]:
+                if current_section:
+                    components[current_section] = '\n'.join(current_content).strip()
+                current_section = line.split(':')[0].strip()
+                current_content = [line.split(':', 1)[1].strip()]
+            else:
+                if current_section:
+                    current_content.append(line)
+        
+        # Add final section
+        if current_section:
+            components[current_section] = '\n'.join(current_content).strip()
+            
+        # Validate code responses
+        if code_requested and not ResponseParser.validate_code_response(response):
+            raise ValueError("Invalid code response format")
+            
+        return components
+    
+    @staticmethod
+    def extract_confidence(text: str) -> Optional[float]:
+        """Extract confidence score from text."""
+        try:
+            # Look for confidence patterns like "0.85" or "85%"
+            matches = re.findall(r'(\d*\.?\d+)(?:%|\s*confidence)?', text.lower())
+            if matches:
+                value = float(matches[0])
+                # Convert percentage to decimal if needed
+                return value / 100 if value > 1 else value
+            return None
+        except Exception:
+            return None
+#src/consensus_engine/models/__init__.py (binary file - contents excluded)
+
+#src/consensus_engine/models/gemini.py
+# """Google Gemini model implementation."""
+# from typing import Dict, Optional
+# import google.generativeai as genai
+# import logging
+# from .base import BaseLLM
+
+# logger = logging.getLogger(__name__)
+
+# class GeminiLLM(BaseLLM):
+#     def __init__(
+#         self,
+#         api_key: str,
+#         model: str,
+#         temperature: float = 0.7,
+#         max_tokens: int = 2000,
+#         system_prompt: Optional[str] = None
+#     ):
+#         super().__init__(api_key, model, temperature, max_tokens, system_prompt)
+#         genai.configure(api_key=api_key)
+#         self.client = genai.GenerativeModel(model_name=self.model)
+    
+#     async def generate_response(self, prompt: str) -> str:
+#         try:
+#             response = await self.client.generate_content_async(
+#                 prompt,
+#                 temperature=self.temperature,
+#                 max_output_tokens=self.max_tokens
+#             )
+#             return response.text
+#         except Exception as e:
+#             logger.error(f"Error generating response: {e}")
+#             raise
+
+#     async def deliberate(self, prompt: str, responses: Dict[str, str]) -> str:
+#         try:
+#             deliberation_prompt = (
+#                 f"Original prompt: {prompt}\n\n"
+#                 "Previous responses:\n"
+#             )
+#             for llm_name, response in responses.items():
+#                 deliberation_prompt += f"\n{llm_name}: {response}\n"
+
+#             response = await self.client.generate_content_async(
+#                 deliberation_prompt,
+#                 temperature=self.temperature,
+#                 max_output_tokens=self.max_tokens
+#             )
+#             return response.text
+#         except Exception as e:
+#             logger.error(f"Error in deliberation: {e}")
+#             raise
+
+#     @property
+#     def name(self) -> str:
+#         return "Gemini"
+#src/consensus_engine/models/openai.py
+"""OpenAI model implementation."""
+from typing import Dict, Optional
+from openai import AsyncOpenAI
+import logging
+from .base import BaseLLM
+from ..config.settings import MODEL_CONFIGS
+
+logger = logging.getLogger(__name__)
+
+class OpenAILLM(BaseLLM):
+    def __init__(
+        self, 
+        api_key: str,
+        model: str = None,
+        temperature: float = None,
+        max_tokens: int = None,
+        system_prompt: str = None
+    ):
+        # Get OpenAI config from settings
+        openai_config = MODEL_CONFIGS["openai"]
+        
+        super().__init__(
+            api_key=api_key,
+            model=model or openai_config["model"],
+            temperature=temperature or openai_config["temperature"],
+            max_tokens=max_tokens or openai_config["max_tokens"],
+            system_prompt=system_prompt or openai_config["system_prompt"]
+        )
+        self.client = AsyncOpenAI(api_key=api_key)
+    
+    async def generate_response(self, prompt: str) -> str:
+        """Generate a response including confidence score."""
+        try:
+            logger.info(f"Getting response from OpenAI ({self.model})")
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": self.system_prompt
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=self.temperature,
+                max_tokens=self.max_tokens
+            )
+            
+            return response.choices[0].message.content
+
+        except Exception as e:
+            logger.error(f"Error generating OpenAI response: {e}")
+            raise
+    
+    @property
+    def name(self) -> str:
+        return "OpenAI"
+#src/consensus_engine/models/loader.py
+"""Model loader for dynamic LLM initialization."""
+import importlib
+import logging
+from typing import List, Type
+from .base import BaseLLM
+from ..config.settings import get_enabled_models, validate_model_config, get_api_key
+
+logger = logging.getLogger(__name__)
+
+class ModelLoader:
+    """Dynamic model loader for LLMs."""
+    
+    @staticmethod
+    def load_models() -> List[BaseLLM]:
+        """Load all enabled and properly configured models."""
+        models = []
+        enabled_configs = get_enabled_models()
+        
+        for model_name, config in enabled_configs.items():
+            try:
+                if not validate_model_config(config):
+                    logger.warning(f"Invalid configuration for {model_name}, skipping")
+                    continue
+                
+                # Get API key
+                try:
+                    api_key = get_api_key(config)
+                except ValueError as e:
+                    logger.warning(f"Skipping {model_name}: {str(e)}")
+                    continue
+                
+                # Import the model module
+                module = importlib.import_module(config["module_path"])
+                model_class: Type[BaseLLM] = getattr(module, config["class_name"])
+                
+                # Initialize the model
+                model = model_class(
+                    api_key=api_key,
+                    model=config["model"],
+                    temperature=config["temperature"],
+                    max_tokens=config["max_tokens"],
+                    system_prompt=config["system_prompt"]
+                )
+                
+                models.append(model)
+                logger.info(f"Successfully loaded {model_name} model")
+                
+            except Exception as e:
+                logger.warning(f"Failed to load {model_name} model: {str(e)}")
+                continue
+        
+        return models
+
+    @staticmethod
+    def validate_models(models: List[BaseLLM]) -> bool:
+        """Validate that we have enough models for consensus."""
+        from ..config.settings import CONSENSUS_SETTINGS
+        
+        min_models = CONSENSUS_SETTINGS["min_models"]
+        max_models = CONSENSUS_SETTINGS["max_models"]
+        
+        if len(models) < min_models:
+            logger.error(f"Not enough models loaded. Minimum required: {min_models}")
+            return False
+            
+        if len(models) > max_models:
+            logger.warning(f"Too many models loaded. Using first {max_models}")
+            del models[max_models:]
+            
+        return True
+#src/consensus_engine/models/anthropic.py
+"""Anthropic model implementation."""
+from typing import Dict, Optional
+from anthropic import AsyncAnthropic
+import logging
+from .base import BaseLLM
+from ..config.settings import MODEL_CONFIGS
+
+logger = logging.getLogger(__name__)
+
+class AnthropicLLM(BaseLLM):
+    def __init__(
+        self, 
+        api_key: str,
+        model: str = None,
+        temperature: float = None,
+        max_tokens: int = None,
+        system_prompt: str = None
+    ):
+        # Get Anthropic config from settings
+        anthropic_config = MODEL_CONFIGS["anthropic"]
+        
+        super().__init__(
+            api_key=api_key,
+            model=model or anthropic_config["model"],
+            temperature=temperature or anthropic_config["temperature"],
+            max_tokens=max_tokens or anthropic_config["max_tokens"],
+            system_prompt=system_prompt or anthropic_config["system_prompt"]
+        )
+        self.client = AsyncAnthropic(api_key=api_key)
+    
+    async def generate_response(self, prompt: str) -> str:
+        """Generate a response including confidence score."""
+        try:
+            logger.info(f"Getting response from Anthropic ({self.model})")
+            response = await self.client.messages.create(
+                model=self.model,
+                max_tokens=self.max_tokens,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                system=self.system_prompt,
+                temperature=self.temperature
+            )
+            
+            return response.content[0].text
+
+        except Exception as e:
+            logger.error(f"Error generating Anthropic response: {e}")
+            raise
+    
+    @property
+    def name(self) -> str:
+        return "Anthropic"
+#src/consensus_engine/models/base.py
+"""Base class for LLM implementations."""
+from abc import ABC, abstractmethod
+from typing import Dict, Any, Optional
+
+class BaseLLM(ABC):
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        temperature: float = 0.7,
+        max_tokens: int = 2000,
+        system_prompt: Optional[str] = None
+    ):
+        self.api_key = api_key
+        self.model = model
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+        self.system_prompt = system_prompt
+
+    @abstractmethod
+    async def generate_response(self, prompt: str) -> str:
+        """Generate a response for the given prompt."""
+        pass
+    
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Return the name of the LLM provider."""
+        pass
+#src/consensus_engine/engine.py
+"""Core consensus engine implementation with rounds."""
+from typing import List, Dict, Optional, Callable, Any, Tuple
+import asyncio
+from sqlalchemy.orm import Session
+from datetime import datetime
+import logging
+import nltk
+import os
+import re
+from nltk.tokenize import sent_tokenize
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from difflib import SequenceMatcher
+from asyncio import Lock
+
+from .models.base import BaseLLM
+from .database.models import Discussion, DiscussionRound, LLMResponse
+from .config.settings import CONSENSUS_SETTINGS
+from .config.round_config import (
+    ROUND_CONFIGS, ROUND_SEQUENCE, CONFIDENCE_GUIDANCE,
+    RESPONSE_FORMAT, CODE_CONSENSUS_GUIDANCE
+)
+
+logger = logging.getLogger(__name__)
+
+class ConsensusEngine:
+    def __init__(self, llms: List[BaseLLM], db_session: Session):
+        self.llms = llms
+        self.db = db_session
+        self.nltk_enabled = self._setup_nltk()
+        self.consensus_threshold = CONSENSUS_SETTINGS["consensus_threshold"]
+        self._discussion_locks = {}
+        self._global_lock = Lock()
+
+    def _setup_nltk(self) -> bool:
+        """Set up NLTK resources."""
+        try:
+            nltk_data_dir = os.path.join(os.path.expanduser("~"), "nltk_data")
+            os.makedirs(nltk_data_dir, exist_ok=True)
+            
+            for resource in ['punkt', 'stopwords']:
+                try:
+                    nltk.data.find(f'tokenizers/{resource}')
+                except LookupError:
+                    nltk.download(resource, quiet=True, download_dir=nltk_data_dir)
+            
+            return True
+        except Exception as e:
+            logger.warning(f"NLTK setup failed: {e}")
+            return False
+
+    def _calculate_similarity(self, responses: Dict[str, str]) -> float:
+        """Calculate semantic similarity between responses with enhanced comparison."""
+        if not responses or len(responses) < 2:
+            return 0.0
+
+        def normalize_text(text: str) -> str:
+            """Normalize text for comparison."""
+            # Remove code blocks for separate comparison
+            text = re.sub(r'```[\s\S]*?```', '', text)
+            # Standardize formatting
+            text = re.sub(r'\s+', ' ', text.lower().strip())
+            return text
+
+        def extract_sections(text: str) -> Dict[str, str]:
+            """Extract labeled sections from responses."""
+            sections = {}
+            current_section = None
+            lines = []
+            
+            for line in text.split('\n'):
+                if ':' in line and line.split(':')[0].isupper():
+                    if current_section and lines:
+                        sections[current_section] = ' '.join(lines)
+                    current_section = line.split(':')[0]
+                    lines = [line.split(':', 1)[1].strip()]
+                elif current_section:
+                    lines.append(line.strip())
+            
+            if current_section and lines:
+                sections[current_section] = ' '.join(lines)
+            
+            return sections
+
+        try:
+            # Calculate section-by-section similarity
+            section_similarities = []
+            response_sections = [extract_sections(resp) for resp in responses.values()]
+            
+            for section_name in set().union(*(sections.keys() for sections in response_sections)):
+                section_texts = [
+                    sections.get(section_name, '')
+                    for sections in response_sections
+                ]
+                if all(section_texts):
+                    vectorizer = TfidfVectorizer(
+                        stop_words='english' if self.nltk_enabled else None,
+                        max_features=1000
+                    )
+                    normalized_texts = [normalize_text(text) for text in section_texts]
+                    tfidf_matrix = vectorizer.fit_transform(normalized_texts)
+                    similarity = cosine_similarity(tfidf_matrix)
+                    avg_similarity = (similarity.sum() - len(section_texts)) / (len(section_texts) * (len(section_texts) - 1))
+                    section_similarities.append(avg_similarity)
+            
+            # Calculate overall similarity
+            return sum(section_similarities) / len(section_similarities) if section_similarities else 0.0
+            
+        except Exception as e:
+            logger.warning(f"Error in vectorization: {e}")
+            # Fallback to simple similarity
+            texts = [normalize_text(text) for text in responses.values()]
+            similarities = []
+            for i in range(len(texts)):
+                for j in range(i + 1, len(texts)):
+                    similarities.append(SequenceMatcher(None, texts[i], texts[j]).ratio())
+            return sum(similarities) / len(similarities) if similarities else 0.0
+
+    def _extract_code_blocks(self, text: str) -> List[str]:
+        """Extract and normalize code blocks from response."""
+        pattern = r"```[\w]*\n(.*?)```"
+        code_blocks = re.findall(pattern, text, re.DOTALL)
+        return [self._normalize_code(block) for block in code_blocks]
+
+    def _normalize_code(self, code: str) -> str:
+        """Normalize code for comparison."""
+        # Remove comments
+        code = re.sub(r'#.*$', '', code, flags=re.MULTILINE)
+        # Remove empty lines and normalize whitespace
+        code = '\n'.join(line.strip() for line in code.split('\n') if line.strip())
+        return code
+
+    def _calculate_code_similarity(self, code_blocks: List[List[str]]) -> float:
+        """Calculate similarity between code implementations."""
+        if not code_blocks or not all(code_blocks):
+            return 0.0
+        
+        def compare_code(code1: str, code2: str) -> float:
+            # Compare core structure
+            struct_similarity = SequenceMatcher(None, code1, code2).ratio()
+            
+            # Compare function signatures
+            sig1 = self._extract_signatures(code1)
+            sig2 = self._extract_signatures(code2)
+            sig_similarity = SequenceMatcher(None, sig1, sig2).ratio()
+            
+            # Compare variable naming
+            vars1 = set(re.findall(r'\b[a-zA-Z_]\w*\b', code1))
+            vars2 = set(re.findall(r'\b[a-zA-Z_]\w*\b', code2))
+            var_similarity = len(vars1.intersection(vars2)) / len(vars1.union(vars2)) if vars1 or vars2 else 0.0
+            
+            # Weighted average
+            return (struct_similarity * 0.5 + sig_similarity * 0.3 + var_similarity * 0.2)
+
+        # Compare each pair of code blocks
+        similarities = []
+        for i in range(len(code_blocks)):
+            for j in range(i + 1, len(code_blocks)):
+                for code1, code2 in zip(code_blocks[i], code_blocks[j]):
+                    similarities.append(compare_code(code1, code2))
+                    
+        return min(similarities) if similarities else 0.0
+
+    def _extract_signatures(self, code: str) -> str:
+        """Extract function signatures from code."""
+        signatures = []
+        for match in re.finditer(r'def\s+\w+\s*\([^)]*\)', code):
+            signatures.append(match.group())
+        return ' '.join(signatures)
+    
+    def _get_cross_evaluations(self, responses: Dict[str, Dict[str, Any]], round_type: str) -> Dict[str, Dict[str, float]]:
+        """Have each model evaluate others' responses."""
+        evaluations = {}
+        for evaluator_name, evaluator_data in responses.items():
+            for target_name, target_data in responses.items():
+                if evaluator_name != target_name:
+                    prompt = f"""
+                    Evaluate this code solution:
+                    {target_data['response']}
+                    
+                    Evaluate it for:
+                    1. Correctness (0-1)
+                    2. Efficiency (0-1)
+                    3. Error handling (0-1)
+                    4. Code style (0-1)
+                    5. Completeness (0-1)
+                    
+                    Provide your evaluation score as a single number from 0-1 in the format:
+                    EVALUATION_SCORE: [score]
+                    """
+                    evaluation_response = self.llms[evaluator_name].generate_response(prompt)
+                    score = self._extract_confidence(evaluation_response)
+                    if evaluator_name not in evaluations:
+                        evaluations[evaluator_name] = {}
+                    evaluations[evaluator_name][target_name] = score
+        return evaluations
+
+    def _select_best_implementation(self, responses: Dict[str, Dict[str, Any]], evaluations: Dict[str, Dict[str, float]]) -> str:
+        """Select best implementation based on cross-evaluations."""
+        avg_scores = {}
+        for target_name in responses:
+            scores = [evals[target_name] for evals in evaluations.values() if target_name in evals]
+            avg_scores[target_name] = sum(scores) / len(scores) if scores else 0
+        
+        best_implementation = max(avg_scores.items(), key=lambda x: x[1])[0]
+        return responses[best_implementation]['response']
+
+    def _validate_code_implementation(self, code: str) -> bool:
+        """Validate code implementation."""
+        try:
+            # Create temporary file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.py') as f:
+                f.write(code)
+                f.flush()
+                
+                # Run static analysis
+                import pylint.lint
+                args = [f.name]
+                lint_score = pylint.lint.Run(args, do_exit=False).linter.stats['global_note']
+                
+                # Run tests if provided in response
+                test_pattern = r'```python\s*test.*?```'
+                test_matches = re.findall(test_pattern, code, re.DOTALL)
+                if test_matches:
+                    test_code = test_matches[0].strip('```python').strip()
+                    exec(test_code)
+                    
+                return lint_score >= 7.0  # Minimum quality threshold
+                
+        except Exception as e:
+            logger.error(f"Code validation error: {e}")
+            return False
+    def _calculate_evidence_similarity(self, responses: List[str]) -> float:
+        """Calculate similarity in evidence usage."""
+        def extract_evidence(text: str) -> List[str]:
+            evidence = []
+            if 'EVIDENCE:' in text:
+                evidence_section = text.split('EVIDENCE:')[1].split('\n')[0]
+                evidence = [e.strip() for e in evidence_section.split(',')]
+            return evidence
+        
+        all_evidence = [extract_evidence(resp) for resp in responses]
+        if not all(all_evidence):
+            return 0.0
+            
+        # Calculate Jaccard similarity between evidence sets
+        similarities = []
+        for i in range(len(all_evidence)):
+            for j in range(i + 1, len(all_evidence)):
+                set1 = set(all_evidence[i])
+                set2 = set(all_evidence[j])
+                similarity = len(set1.intersection(set2)) / len(set1.union(set2)) if set1 or set2 else 0.0
+                similarities.append(similarity)
+                
+        return sum(similarities) / len(similarities) if similarities else 0.0
+
+    def _extract_confidence(self, text: str) -> float:
+        """Extract and validate confidence score."""
+        try:
+            confidence_line = re.search(r"CONFIDENCE:\s*(\d*\.?\d+)", text, re.IGNORECASE)
+            if confidence_line:
+                confidence = float(confidence_line.group(1))
+                return min(max(confidence / 100 if confidence > 1 else confidence, 0.0), 1.0)
+        except Exception as e:
+            logger.warning(f"Error extracting confidence: {e}")
+        return 0.0
+
+    def _check_consensus(self, responses: Dict[str, Dict[str, Any]], round_type: str) -> Dict[str, Any]:
+        """Enhanced consensus checking with detailed metrics."""
+        # Extract responses and confidence scores
+        texts = [data['response'] for data in responses.values()]
+        confidences = [data['confidence'] for data in responses.values()]
+        
+        # Initialize metrics
+        metrics = {
+            'similarity': 0.0,
+            'avg_confidence': 0.0,
+            'key_differences': [],
+            'alignment_areas': [],
+            'remaining_issues': [],
+            'key_alignments': []
+        }
+        
+        # Calculate base similarity
+        metrics['similarity'] = self._calculate_similarity({str(i): text for i, text in enumerate(texts)})
+        metrics['avg_confidence'] = sum(confidences) / len(confidences)
+        
+        # Check for code or evidence-based responses
+        has_code = any("```" in text for text in texts)
+        has_evidence = any("EVIDENCE:" in text for text in texts)
+        
+        if has_code:
+            code_blocks = [self._extract_code_blocks(text) for text in texts]
+            if all(code_blocks):
+                code_similarity = self._calculate_code_similarity(code_blocks)
+                # Weight code similarity more heavily for code-based responses
+                metrics['similarity'] = (metrics['similarity'] * 0.3 + code_similarity * 0.7)
+        
+        if has_evidence:
+            evidence_similarity = self._calculate_evidence_similarity(texts)
+            metrics['similarity'] = (metrics['similarity'] * 0.7 + evidence_similarity * 0.3)
+        
+        # Get required thresholds
+        required_confidence = ROUND_CONFIGS[round_type]["required_confidence"]
+        
+        # Determine consensus
+        consensus_reached = (metrics['similarity'] >= self.consensus_threshold and 
+                           metrics['avg_confidence'] >= required_confidence)
+        
+        return {
+            'consensus_reached': consensus_reached,
+            'metrics': metrics
+        }
+
+    def _format_round_prompt(self, round_type: str, prompt: str, 
+                           previous_responses: Optional[Dict[str, str]] = None,
+                           consensus_metrics: Optional[Dict[str, Any]] = None) -> str:
+        """Format prompt with round-specific guidance and metrics."""
+        round_format = RESPONSE_FORMAT[round_type]
+        round_guidance = ROUND_CONFIGS[round_type]["consensus_guidance"]
+        
+        # Build complete prompt
+        full_prompt = f"Original prompt: {prompt}\n\n"
+        
+        if previous_responses:
+            full_prompt += "Previous responses:\n"
+            for name, resp in previous_responses.items():
+                full_prompt += f"\n{name}: {resp}\n"
+                
+        if consensus_metrics:
+            # Format guidance with current metrics
+            round_guidance = round_guidance.format(
+                similarity=f"{consensus_metrics['similarity']:.2f}",
+                consensus_threshold=f"{self.consensus_threshold:.2f}",
+                avg_confidence=f"{consensus_metrics['avg_confidence']:.2f}",
+                key_differences=", ".join(consensus_metrics.get('key_differences', [])),
+                alignment_areas=", ".join(consensus_metrics.get('alignment_areas', [])),
+                remaining_issues=", ".join(consensus_metrics.get('remaining_issues', [])),
+                key_alignments=", ".join(consensus_metrics.get('key_alignments', []))
+            )
+        
+        full_prompt += f"\n{CONFIDENCE_GUIDANCE}\n"
+        full_prompt += f"\n{round_guidance}\n"
+        
+        # Add code guidance if needed
+        if "```" in str(previous_responses):
+            full_prompt += f"\n{CODE_CONSENSUS_GUIDANCE}\n"
+            
+        full_prompt += f"\n{round_format}\n"
+        
+        return full_prompt
+
+    async def discuss(
+        self,
+        prompt: str,
+        progress_callback: Optional[Callable[[str], None]] = None
+    ) -> Dict[str, Any]:
+        """Conduct a complete consensus discussion."""
+        async with self._global_lock:
+            discussion = Discussion(prompt=prompt)
+            self.db.add(discussion)
+            self.db.commit()
+            self._discussion_locks[discussion.id] = Lock()
+
+        def update_progress(msg: str):
+            """Synchronous progress update."""
+            if progress_callback:
+                progress_callback(msg)
+            logger.info(msg)
+
+        try:
+            update_progress("Starting consensus discussion...")
+            
+            previous_responses = {}
+            current_round = 0
+            consensus_metrics = None
+            all_responses = {}
+
+            for round_type in ROUND_SEQUENCE:
+                update_progress(f"\n📍 Starting {round_type} round...")
+                
+                discussion_round = DiscussionRound(
+                    discussion_id=discussion.id,
+                    round_number=current_round
+                )
+                self.db.add(discussion_round)
+                self.db.commit()
+
+                round_responses = {}
+                current_responses = {}
+
+                for llm in self.llms:
+                    try:
+                        update_progress(f"Getting {llm.name}'s response...")
+                        
+                        # Format prompt with current consensus metrics
+                        full_prompt = self._format_round_prompt(
+                            round_type, prompt, previous_responses, consensus_metrics
+                        )
+
+                        response = await llm.generate_response(full_prompt)
+                        confidence = self._extract_confidence(response)
+
+                        llm_response = LLMResponse(
+                            round_id=discussion_round.id,
+                            llm_name=llm.name,
+                            response_text=response,
+                            confidence_score=confidence
+                        )
+                        self.db.add(llm_response)
+                        self.db.commit()
+
+                        round_responses[llm.name] = response
+                        current_responses[llm.name] = {
+                            'response': response,
+                            'confidence': confidence
+                        }
+                        
+                        update_progress(
+                            f"LLM: {llm.name}\n"
+                            f"Status: Complete ✓\n"
+                            f"Response:\n{response}\n"
+                            f"Confidence Score: {confidence:.2f}"
+                        )
+
+                    except Exception as e:
+                        logger.error(f"Error getting {llm.name} response: {e}")
+                        update_progress(f"⚠️ Error with {llm.name}: {str(e)}")
+                        continue
+
+                # Calculate consensus metrics for this round
+                consensus_result = self._check_consensus(current_responses, round_type)
+                consensus_metrics = consensus_result['metrics']
+                
+                # Generate detailed round summary
+                similarity = consensus_metrics['similarity']
+                avg_confidence = consensus_metrics['avg_confidence']
+                required_confidence = ROUND_CONFIGS[round_type]["required_confidence"]
+
+                update_progress(
+                    f"\nRound {current_round + 1} Results:\n"
+                    f"- Similarity Score: {similarity:.2f} (target: {self.consensus_threshold:.2f})\n"
+                    f"- Average Confidence: {avg_confidence:.2f} (required: {required_confidence:.2f})"
+                )
+
+                # Store responses for next round
+                previous_responses = round_responses
+                all_responses = current_responses
+
+                # Check if we've reached consensus
+                if consensus_result['consensus_reached']:
+                    if round_type == ROUND_SEQUENCE[-1]:
+                        # Get cross-evaluations
+                        evaluations = await self._get_cross_evaluations(current_responses, round_type)
+                        
+                        has_code = any("```" in resp['response'] for resp in current_responses.values())
+                    if has_code:
+                        # Select best code implementation
+                        consensus = self._select_best_implementation(current_responses, evaluations)
+                        
+                        # Validate selected implementation
+                        if not self._validate_code_implementation(consensus):
+                            logger.warning("Selected implementation failed validation")
+                            return {
+                                "status": "no_consensus",
+                                "reason": "Code validation failed",
+                                "individual_responses": round_responses,
+                                "metrics": consensus_metrics
+                            }
+                    else:
+                        # For non-code responses, use highest cross-evaluation score
+                        consensus_llm = max(
+                            evaluations.items(),
+                            key=lambda x: sum(x[1].values()) / len(x[1])
+                        )[0]
+                        consensus = current_responses[consensus_llm]['response']
+                    
+                    # Update discussion record
+                    discussion.consensus_reached = 1
+                    discussion.final_consensus = consensus
+                    discussion.completed_at = datetime.utcnow()
+                    self.db.commit()
+
+                    update_progress("\n🎉 Consensus achieved!")
+
+                    return {
+                        "status": "consensus_reached",
+                        "consensus": consensus,
+                        "individual_responses": round_responses,
+                        "metrics": consensus_metrics,
+                        "evaluations": evaluations
+                    }
+
+                current_round += 1
+
+            # No consensus reached
+            discussion.completed_at = datetime.utcnow()
+            self.db.commit()
+
+            update_progress("\n⚠️ No consensus reached after all rounds")
+
+            # Return final positions from each LLM
+            return {
+                "status": "no_consensus",
+                "individual_responses": {
+                    name: data['response'] 
+                    for name, data in all_responses.items()
+                },
+                "metrics": consensus_metrics
+            }
+
+        except Exception as e:
+            logger.error(f"Error during discussion: {str(e)}")
+            discussion.completed_at = datetime.utcnow()
+            self.db.commit()
+            raise
+
+        finally:
+            # Clean up discussion lock
+            async with self._global_lock:
+                self._discussion_locks.pop(discussion.id, None)
+#src/consensus_engine/cli.py
+"""Command-line interface for the Consensus Engine."""
+import asyncio
+import click
+import os
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from .engine import ConsensusEngine
+from .models.openai import OpenAILLM
+from .models.anthropic import AnthropicLLM
+from .database.models import Base, Discussion
+from .config.settings import LOG_LEVEL_NUM
+from .config.round_config import ROUND_SEQUENCE
+from .web import GradioInterface, find_available_port
+import logging
+
+logging.basicConfig(level=LOG_LEVEL_NUM)
+console = Console()
+
+def get_db_session():
+    """Initialize and return a database session."""
+    database_url = os.getenv("CONSENSUS_ENGINE_DB_URL", "sqlite:///consensus_engine.db")
+    engine = create_engine(database_url)
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    return Session()
+
+def list_discussions(db_session):
+    """List all discussions from the database."""
+    discussions = db_session.query(Discussion).all()
+    
+    table = Table(show_header=True, header_style="bold magenta")
+    table.add_column("ID")
+    table.add_column("Started")
+    table.add_column("Status")
+    table.add_column("Prompt")
+    
+    for disc in discussions:
+        status = "✅ Consensus" if disc.consensus_reached else "❌ No Consensus"
+        prompt_preview = disc.prompt[:50] + "..." if len(disc.prompt) > 50 else disc.prompt
+        table.add_row(
+            str(disc.id),
+            disc.started_at.strftime("%Y-%m-%d %H:%M"),
+            status,
+            prompt_preview
+        )
+    
+    console.print(table)
+
+async def run_discussion(prompt: str, engine: ConsensusEngine) -> None:
+    """Run a discussion with the round-based consensus engine."""
+    console.print("\n[bold blue]Starting consensus discussion...[/bold blue]")
+    
+    def display_progress(msg: str):
+        console.print(msg)
+    
+    try:
+        result = await engine.discuss(prompt, display_progress)
+        
+        if isinstance(result, dict) and "consensus" in result:
+            console.print("\n[bold green]🎉 Consensus Reached![/bold green]")
+            console.print(Panel(
+                result["consensus"],
+                title="Final Consensus",
+                border_style="green"
+            ))
+            
+            console.print("\n[bold blue]Individual Contributions:[/bold blue]")
+            for llm_name, response in result["individual_responses"].items():
+                console.print(Panel(
+                    response,
+                    title=f"{llm_name}'s Response",
+                    border_style="blue"
+                ))
+        else:
+            console.print("\n[bold yellow]⚠️ No Consensus Reached - Final Positions:[/bold yellow]")
+            for llm_name, response in result.items():
+                console.print(Panel(
+                    response,
+                    title=f"{llm_name} Final Response",
+                    border_style="yellow"
+                ))
+
+    except Exception as e:
+        console.print(f"[red]Error during discussion: {str(e)}[/red]")
+
+@click.command()
+@click.option('--web', is_flag=True, help='Launch in web interface mode')
+@click.option('--cli', is_flag=True, help='Launch in CLI mode')
+@click.option('--port', default=7860, help='Port for web interface')
+@click.option('--host', default="127.0.0.1", help='Host for web interface')
+@click.option('--list', 'list_mode', is_flag=True, help='List past discussions')
+@click.option('--view', type=int, help='View a specific discussion by ID')
+@click.option('--debug', is_flag=True, help='Enable debug logging')
+@click.option('--load', type=int, help='Load a previous discussion by ID and continue')
+@click.option('--log-level', 
+              type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], 
+              case_sensitive=False),
+              default='WARNING',
+              help='Set the logging level')
+def main(web, cli, port, host, list_mode, view, debug, load, log_level):
+    """Consensus Engine - Orchestrate discussions between multiple LLMs."""
+    logging.getLogger().setLevel(log_level.upper())
+
+    db_session = get_db_session()
+
+    try:
+        if list_mode:
+            list_discussions(db_session)
+            return
+
+        if view is not None:
+            discussion = db_session.query(Discussion).get(view)
+            if not discussion:
+                console.print(f"[red]No discussion found with ID {view}[/red]")
+                return
+                
+            console.print(Panel(
+                discussion.prompt,
+                title="Original Prompt",
+                border_style="blue"
+            ))
+            
+            if discussion.consensus_reached:
+                console.print("\n[bold green]✅ Consensus Reached[/bold green]")
+                console.print(Panel(
+                    discussion.final_consensus,
+                    title="Final Consensus",
+                    border_style="green"
+                ))
+            else:
+                console.print("\n[bold yellow]❌ No Consensus Reached[/bold yellow]")
+
+            for round_num in range(len(ROUND_SEQUENCE)):
+                round = next((r for r in discussion.rounds if r.round_number == round_num), None)
+                if round:
+                    console.print(f"\n[bold blue]Round {round_num + 1} ({ROUND_SEQUENCE[round_num]}):[/bold blue]")
+                    for response in round.responses:
+                        console.print(Panel(
+                            response.response_text,
+                            title=f"{response.llm_name} (Confidence: {response.confidence_score:.2f})",
+                            border_style="blue"
+                        ))
+            return
+
+        if web:
+            try:
+                port = find_available_port(port)
+                console.print(f"[green]Using port: {port}[/green]")
+            except RuntimeError as e:
+                console.print(f"[yellow]Warning: {str(e)}. Using default port.[/yellow]")
+            
+            app = GradioInterface()
+            app.launch(host=host, port=port, debug=debug)
+            return
+
+        # Default to CLI mode if no other mode specified
+        if not any([web, list_mode, view]):
+            cli = True
+
+        if cli:
+            # Check API keys
+            openai_key = os.getenv("OPENAI_API_KEY")
+            anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+            
+            if not openai_key or not anthropic_key:
+                console.print("[red]Error: Missing API keys[/red]")
+                console.print("Please set the following environment variables:")
+                console.print("  - OPENAI_API_KEY")
+                console.print("  - ANTHROPIC_API_KEY")
+                return
+
+            # Initialize LLMs and engine
+            llms = [
+                OpenAILLM(openai_key),
+                AnthropicLLM(anthropic_key)
+            ]
+            
+            engine = ConsensusEngine(llms, db_session)
+            
+            # Handle loading previous discussion
+            if load is not None:
+                discussion = db_session.query(Discussion).get(load)
+                if not discussion:
+                    console.print(f"[red]No discussion found with ID {load}[/red]")
+                    return
+                prompt = discussion.prompt
+                console.print(f"\n[bold blue]Loaded previous discussion:[/bold blue]")
+                console.print(Panel(prompt, title="Original Prompt"))
+            else:
+                # Get prompt
+                prompt = console.input("\n[bold green]Enter your prompt:[/bold green] ")
+            
+            if not prompt.strip():
+                console.print("[red]Error: Prompt cannot be empty[/red]")
+                return
+            
+            # Run discussion
+            asyncio.run(run_discussion(prompt, engine))
+
+    except Exception as e:
+        console.print(f"[red]Error: {str(e)}[/red]")
+        if debug:
+            import traceback
+            console.print(traceback.format_exc())
+    finally:
+        db_session.close()
+
+if __name__ == "__main__":
+    main()
+
+#src/consensus_engine/protocols/protocols.py
+# src/consensus_engine/protocols/base_protocol.py
+
+"""Base protocol for consensus building."""
+from abc import ABC, abstractmethod
+from typing import Dict, Any, List
+from ..database.models import RoundType
+
+class BaseConsensusProtocol(ABC):
+    @abstractmethod
+    def get_round_sequence(self) -> List[RoundType]:
+        """Return the sequence of rounds for this protocol."""
+        pass
+    
+    @abstractmethod
+    def get_round_requirements(self, round_type: RoundType) -> Dict[str, Any]:
+        """Get requirements for a specific round."""
+        pass
+    
+    @abstractmethod
+    def validate_round_transition(self, 
+                                current_round: RoundType,
+                                next_round: RoundType,
+                                round_data: Dict[str, Any]) -> bool:
+        """Validate if transition to next round is allowed."""
+        pass
+    
+    @abstractmethod
+    def check_consensus(self,
+                       round_type: RoundType,
+                       responses: Dict[str, str],
+                       metadata: Dict[str, Any]) -> bool:
+        """Check if consensus has been reached for the current round."""
+        pass
+
+# src/consensus_engine/protocols/poker_protocol.py
+
+"""Poker-style consensus protocol implementation."""
+from typing import Dict, Any, List
+from .base_protocol import BaseConsensusProtocol
+from ..database.models import RoundType
+from ..config.round_config import ROUND_CONFIGS
+
+class PokerConsensusProtocol(BaseConsensusProtocol):
+    def get_round_sequence(self) -> List[RoundType]:
+        return [RoundType.PRE_FLOP, RoundType.FLOP, RoundType.TURN, 
+                RoundType.RIVER, RoundType.SHOWDOWN]
+    
+    def get_round_requirements(self, round_type: RoundType) -> Dict[str, Any]:
+        return ROUND_CONFIGS[round_type.value]["requirements"]
+    
+    def validate_round_transition(self,
+                                current_round: RoundType,
+                                next_round: RoundType,
+                                round_data: Dict[str, Any]) -> bool:
+        # Get confidence scores from round data
+        confidence_scores = [response.get('confidence_score', 0)
+                           for response in round_data.get('responses', [])]
+        
+        if not confidence_scores:
+            return False
+            
+        # Calculate average confidence
+        avg_confidence = sum(confidence_scores) / len(confidence_scores)
+        
+        # Get required confidence for next round
+        required_confidence = ROUND_CONFIGS[next_round.value]["required_confidence"]
+        
+        # Validate transition
+        return (avg_confidence >= required_confidence and
+                self._validate_round_requirements(round_data, current_round))
+    
+    def _validate_round_requirements(self,
+                                   round_data: Dict[str, Any],
+                                   round_type: RoundType) -> bool:
+        requirements = self.get_round_requirements(round_type)
+        
+        # Check minimum participants
+        if len(round_data.get('responses', [])) < requirements['min_participants']:
+            return False
+            
+        # Check evidence requirements
+        if (requirements['evidence_required'] and
+            not all('evidence' in r.get('response_metadata', {})
+                   for r in round_data.get('responses', []))):
+            return False
+            
+        # Check verification requirements
+        if (requirements['verification_required'] and
+            not all('verification' in r.get('response_metadata', {})
+                   for r in round_data.get('responses', []))):
+            return False
+            
+        return True
+    
+    def check_consensus(self,
+                       round_type: RoundType,
+                       responses: Dict[str, str],
+                       metadata: Dict[str, Any]) -> bool:
+        required_confidence = ROUND_CONFIGS[round_type.value]["required_confidence"]
+        
+        if round_type == RoundType.SHOWDOWN:
+            # For final round, check if all participants agree on final position
+            final_positions = [m.get('final_position') 
+                             for m in metadata.get('response_metadata', [])]
+            return len(set(final_positions)) == 1
+        else:
+            # For other rounds, check confidence scores
+            confidence_scores = [m.get('confidence_score', 0) 
+                               for m in metadata.get('response_metadata', [])]
+            return (sum(confidence_scores) / len(confidence_scores) >= 
+                   required_confidence)
+#src/consensus_engine/protocols/__init__.py
+"""Protocol implementations for the consensus engine."""
+from .protocols import BaseConsensusProtocol, PokerConsensusProtocol
+
+__all__ = ['BaseConsensusProtocol', 'PokerConsensusProtocol']

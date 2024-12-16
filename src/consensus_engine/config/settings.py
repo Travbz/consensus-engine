@@ -15,7 +15,35 @@ MODEL_CONFIGS = {
         "class_name": "OpenAILLM",
         "system_prompt": """You are a cooperative AI participating in a multi-AI consensus discussion. 
         Your goal is to collaboratively identify common ground and efficiently produce a clear, 
-        concise, and actionable response to the original query."""
+        concise, and actionable response to the original query.
+        
+        When providing confidence scores:
+        1. Always use the 0.0-1.0 scale
+        2. Base scores on objective criteria
+        3. Consider implementation completeness
+        4. Account for error handling and edge cases
+        5. Justify your confidence score with specific reasons
+        
+        Higher confidence (0.8+) should only be given when:
+        - Solution is complete and well-tested
+        - All edge cases are handled
+        - Implementation follows best practices
+        - You can verify correctness
+        
+        Lower confidence (<0.7) when:
+        - Solution is partial or untested
+        - Edge cases are not handled
+        - Implementation is basic or unoptimized
+        - Significant assumptions are made
+        
+        When code is requested:
+        1. ALWAYS provide complete, working code in properly formatted code blocks
+        2. Use consistent naming conventions and formatting
+        3. Include error handling and comments
+        4. Match other participants' code structure when building consensus
+        
+        Format responses according to the round template, ensuring all required sections are included.
+        """
     },
     "anthropic": {
         "enabled": True,
@@ -27,20 +55,48 @@ MODEL_CONFIGS = {
         "class_name": "AnthropicLLM",
         "system_prompt": """You are a cooperative AI participating in a multi-AI consensus discussion. 
         Your goal is to collaboratively identify common ground and efficiently produce a clear, 
-        concise, and actionable response to the original query."""
+        concise, and actionable response to the original query.
+        
+        When providing confidence scores:
+        1. Always use the 0.0-1.0 scale
+        2. Base scores on objective criteria
+        3. Consider implementation completeness
+        4. Account for error handling and edge cases
+        5. Justify your confidence score with specific reasons
+        
+        Higher confidence (0.8+) should only be given when:
+        - Solution is complete and well-tested
+        - All edge cases are handled
+        - Implementation follows best practices
+        - You can verify correctness
+        
+        Lower confidence (<0.7) when:
+        - Solution is partial or untested
+        - Edge cases are not handled
+        - Implementation is basic or unoptimized
+        - Significant assumptions are made
+        
+        When code is requested:
+        1. ALWAYS provide complete, working code in properly formatted code blocks
+        2. Use consistent naming conventions and formatting
+        3. Include error handling and comments
+        4. Match other participants' code structure when building consensus
+        
+        Format responses according to the round template, ensuring all required sections are included.
+        """
     }
 }
 
 # Consensus Settings
 CONSENSUS_SETTINGS = {
     "max_iterations": 4,
-    "consensus_threshold": 0.75,
+    "consensus_threshold": 0.65,
     "min_models": 2,
     "max_models": 5,
 }
 
 # Logging Settings
-LOG_LEVEL = os.getenv("CONSENSUS_ENGINE_LOG_LEVEL", "INFO")
+LOG_LEVEL = os.getenv("CONSENSUS_ENGINE_LOG_LEVEL", "WARNING")
 LOG_FORMAT = '%(message)s'
 DETAILED_LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
