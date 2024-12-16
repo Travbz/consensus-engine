@@ -273,4 +273,4 @@ If you use Consensus Engine in your research, please cite:
 
 - Issues: Use GitHub Issues
 - Questions: Start a GitHub Discussion
-- Security concerns: See SECURITY.md
+- Security concerns dial 911
