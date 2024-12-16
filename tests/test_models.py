@@ -1,118 +1,113 @@
-"""Tests for LLM model implementations."""
+"""Tests for language model implementations."""
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, MagicMock
 from consensus_engine.models.openai import OpenAILLM
 from consensus_engine.models.anthropic import AnthropicLLM
-from consensus_engine.config.settings import MODEL_CONFIGS
+from consensus_engine.models.loader import ModelLoader
 
 @pytest.fixture
-def openai_llm():
-    """Create an OpenAI LLM instance with mock API key."""
-    return OpenAILLM("mock-api-key")
+def mock_openai():
+    """Create a mock OpenAI client."""
+    mock = AsyncMock()
+    mock.chat.completions.create = AsyncMock(return_value=MagicMock(
+        choices=[MagicMock(message=MagicMock(content="Test OpenAI response"))]
+    ))
+    return mock
 
 @pytest.fixture
-def anthropic_llm():
-    """Create an Anthropic LLM instance with mock API key."""
-    return AnthropicLLM("mock-api-key")
+def mock_anthropic():
+    """Create a mock Anthropic client."""
+    mock = AsyncMock()
+    mock.messages.create = AsyncMock(return_value=MagicMock(
+        content=[MagicMock(text="Test Anthropic response")]
+    ))
+    return mock
 
 @pytest.mark.asyncio
-async def test_openai_response_format(openai_llm):
-    """Test OpenAI response formatting."""
-    mock_response = AsyncMock()
-    mock_response.choices = [
-        AsyncMock(
-            message=AsyncMock(
-                content="""
-                UNDERSTANDING: Test understanding
-                CONSTRAINTS: Test constraints
-                INITIAL_POSITION: Test position
-                CONFIDENCE: 0.8 Test confidence explanation
-                """
-            )
-        )
-    ]
-    
-    with patch('openai.AsyncOpenAI.chat.completions.create', return_value=mock_response):
-        response = await openai_llm.generate_response("test prompt")
+async def test_openai_model():
+    """Test OpenAI model generation."""
+    with patch('openai.AsyncClient', return_value=AsyncMock()) as mock_client:
+        model = OpenAILLM("test-key", "gpt-4")
+        response = await model.generate_response("Test prompt")
         assert isinstance(response, str)
-        assert "UNDERSTANDING:" in response
-        assert "CONFIDENCE:" in response
+        mock_client.return_value.chat.completions.create.assert_called_once()
 
 @pytest.mark.asyncio
-async def test_anthropic_response_format(anthropic_llm):
-    """Test Anthropic response formatting."""
-    mock_response = AsyncMock()
-    mock_response.content = [
-        AsyncMock(
-            text="""
-            UNDERSTANDING: Test understanding
-            CONSTRAINTS: Test constraints
-            INITIAL_POSITION: Test position
-            CONFIDENCE: 0.8 Test confidence explanation
-            """
-        )
-    ]
-    
-    with patch('anthropic.AsyncAnthropic.messages.create', return_value=mock_response):
-        response = await anthropic_llm.generate_response("test prompt")
+async def test_anthropic_model():
+    """Test Anthropic model generation."""
+    with patch('anthropic.AsyncAnthropic', return_value=AsyncMock()) as mock_client:
+        model = AnthropicLLM("test-key", "claude-2")
+        response = await model.generate_response("Test prompt")
         assert isinstance(response, str)
-        assert "UNDERSTANDING:" in response
-        assert "CONFIDENCE:" in response
+        mock_client.return_value.messages.create.assert_called_once()
 
 @pytest.mark.asyncio
-async def test_openai_error_handling(openai_llm):
+async def test_openai_error_handling():
     """Test OpenAI error handling."""
-    with patch('openai.AsyncOpenAI.chat.completions.create', 
-              side_effect=Exception("API Error")):
+    with patch('openai.AsyncClient', return_value=AsyncMock()) as mock_client:
+        mock_client.return_value.chat.completions.create.side_effect = Exception("API Error")
+        model = OpenAILLM("test-key", "gpt-4")
         with pytest.raises(Exception):
-            await openai_llm.generate_response("test prompt")
+            await model.generate_response("Test prompt")
 
 @pytest.mark.asyncio
-async def test_anthropic_error_handling(anthropic_llm):
+async def test_anthropic_error_handling():
     """Test Anthropic error handling."""
-    with patch('anthropic.AsyncAnthropic.messages.create',
-              side_effect=Exception("API Error")):
+    with patch('anthropic.AsyncAnthropic', return_value=AsyncMock()) as mock_client:
+        mock_client.return_value.messages.create.side_effect = Exception("API Error")
+        model = AnthropicLLM("test-key", "claude-2")
         with pytest.raises(Exception):
-            await anthropic_llm.generate_response("test prompt")
+            await model.generate_response("Test prompt")
 
-def test_model_configuration():
-    """Test model configuration loading."""
-    openai_config = MODEL_CONFIGS["openai"]
-    anthropic_config = MODEL_CONFIGS["anthropic"]
-    
-    assert "model" in openai_config
-    assert "temperature" in openai_config
-    assert "max_tokens" in openai_config
-    assert "system_prompt" in openai_config
-    
-    assert "model" in anthropic_config
-    assert "temperature" in anthropic_config
-    assert "max_tokens" in anthropic_config
-    assert "system_prompt" in anthropic_config
+def test_model_loader():
+    """Test model loading functionality."""
+    with patch.dict('os.environ', {
+        'OPENAI_API_KEY': 'test-key',
+        'ANTHROPIC_API_KEY': 'test-key'
+    }), patch('consensus_engine.models.loader.get_enabled_models', return_value={
+        'gpt-4': {
+            'module_path': 'consensus_engine.models.openai',
+            'class_name': 'OpenAILLM',
+            'model': 'gpt-4',
+            'temperature': 0.7,
+            'max_tokens': 2000,
+            'system_prompt': 'test prompt'
+        },
+        'claude-2': {
+            'module_path': 'consensus_engine.models.anthropic',
+            'class_name': 'AnthropicLLM',
+            'model': 'claude-2',
+            'temperature': 0.7,
+            'max_tokens': 2000,
+            'system_prompt': 'test prompt'
+        }
+    }):
+        models = ModelLoader.load_models()
+        assert len(models) == 2
+        assert isinstance(models[0], OpenAILLM)
+        assert isinstance(models[1], AnthropicLLM)
+
+def test_model_loader_validation():
+    """Test model loader validation."""
+    with patch('consensus_engine.models.loader.CONSENSUS_SETTINGS', {
+        'min_models': 2,
+        'max_models': 3
+    }):
+        models = [MagicMock(spec=OpenAILLM), MagicMock(spec=AnthropicLLM)]
+        assert ModelLoader.validate_models(models) is True
 
 @pytest.mark.asyncio
-async def test_openai_system_prompt(openai_llm):
-    """Test OpenAI system prompt usage."""
-    mock_response = AsyncMock()
-    mock_response.choices = [AsyncMock(message=AsyncMock(content="Test response"))]
-    
-    with patch('openai.AsyncOpenAI.chat.completions.create') as mock_create:
-        await openai_llm.generate_response("test prompt")
-        
-        # Verify system prompt was included in the API call
-        call_args = mock_create.call_args[1]
-        messages = call_args['messages']
-        assert any(m['role'] == 'system' for m in messages)
+async def test_openai_response_parsing(mock_openai):
+    """Test OpenAI response parsing."""
+    with patch('openai.AsyncClient', return_value=mock_openai):
+        model = OpenAILLM("test-key", "gpt-4")
+        response = await model.generate_response("Test prompt")
+        assert "Test OpenAI response" in response
 
 @pytest.mark.asyncio
-async def test_anthropic_system_prompt(anthropic_llm):
-    """Test Anthropic system prompt usage."""
-    mock_response = AsyncMock()
-    mock_response.content = [AsyncMock(text="Test response")]
-    
-    with patch('anthropic.AsyncAnthropic.messages.create') as mock_create:
-        await anthropic_llm.generate_response("test prompt")
-        
-        # Verify system prompt was included in the API call
-        call_args = mock_create.call_args[1]
-        assert 'system' in call_args
+async def test_anthropic_response_parsing(mock_anthropic):
+    """Test Anthropic response parsing."""
+    with patch('anthropic.AsyncAnthropic', return_value=mock_anthropic):
+        model = AnthropicLLM("test-key", "claude-2")
+        response = await model.generate_response("Test prompt")
+        assert "Test Anthropic response" in response

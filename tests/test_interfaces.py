@@ -2,7 +2,7 @@
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from click.testing import CliRunner
-from gradio.testing_utils import GradioTestClient
+from gradio_client import Client as GradioTestClient
 import tempfile
 import os
 from consensus_engine.cli import main as cli_main
@@ -79,6 +79,21 @@ async def test_cli_discussion(cli_runner, mock_engine, mock_db_session):
         result = cli_runner.invoke(cli_main, input="Test prompt\n")
         assert result.exit_code == 0
         assert "Consensus" in result.output
+        mock_engine.discuss.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_cli_discussion_with_options(cli_runner, mock_engine, mock_db_session):
+    """Test running a discussion with specific options."""
+    with patch('consensus_engine.cli.get_db_session', return_value=mock_db_session), \
+         patch('consensus_engine.cli.ConsensusEngine', return_value=mock_engine), \
+         patch.dict('os.environ', {
+             'OPENAI_API_KEY': 'test-key',
+             'ANTHROPIC_API_KEY': 'test-key'
+         }):
+        result = cli_runner.invoke(cli_main, ['--rounds', '3', '--models', 'gpt-4,claude-2'], input="Test prompt\n")
+        assert result.exit_code == 0
+        assert "Consensus" in result.output
+        mock_engine.discuss.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_web_interface_creation():
@@ -89,6 +104,7 @@ async def test_web_interface_creation():
     }):
         interface = GradioInterface()
         assert interface is not None
+        assert hasattr(interface, 'launch')
 
 @pytest.mark.asyncio
 async def test_web_discussion_flow(mock_engine, mock_db_session):
@@ -97,12 +113,12 @@ async def test_web_discussion_flow(mock_engine, mock_db_session):
          patch('consensus_engine.web.ConsensusEngine', return_value=mock_engine):
         interface = GradioInterface()
         
-        # Test discussion progress updates
         updates = []
         async for msg in interface._run_discussion("Test prompt"):
             updates.append(msg)
         
         assert any("Consensus Reached" in msg for msg in updates)
+        mock_engine.discuss.assert_called_once()
 
 @pytest.mark.asyncio
 async def test_web_interface_error_handling(mock_engine, mock_db_session):
@@ -130,3 +146,16 @@ def test_web_interface_port_handling():
         
         mock_launch.assert_called_once()
         assert mock_launch.call_args[1]['server_port'] == 7860
+
+@pytest.mark.asyncio
+async def test_web_interface_model_selection(mock_engine, mock_db_session):
+    """Test model selection in web interface."""
+    with patch('consensus_engine.web.get_db_session', return_value=mock_db_session), \
+         patch('consensus_engine.web.ConsensusEngine', return_value=mock_engine):
+        interface = GradioInterface()
+        
+        updates = []
+        async for msg in interface._run_discussion("Test prompt", models=["gpt-4", "claude-2"]):
+            updates.append(msg)
+        
+        assert mock_engine.discuss.call_args[1]['models'] == ["gpt-4", "claude-2"]
