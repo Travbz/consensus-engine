@@ -1,6 +1,6 @@
 """Tests for LLM model implementations."""
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, MagicMock
 from consensus_engine.models.openai import OpenAILLM
 from consensus_engine.models.anthropic import AnthropicLLM
 from consensus_engine.config.settings import MODEL_CONFIGS
@@ -18,21 +18,10 @@ def anthropic_llm():
 @pytest.mark.asyncio
 async def test_openai_response_format(openai_llm):
     """Test OpenAI response formatting."""
-    mock_response = AsyncMock()
-    mock_response.choices = [
-        AsyncMock(
-            message=AsyncMock(
-                content="""
-                UNDERSTANDING: Test understanding
-                CONSTRAINTS: Test constraints
-                INITIAL_POSITION: Test position
-                CONFIDENCE: 0.8 Test confidence explanation
-                """
-            )
-        )
-    ]
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock(message=MagicMock(content="Test response"))]
     
-    with patch('openai.AsyncOpenAI.chat.completions.create', return_value=mock_response):
+    with patch('openai.AsyncClient.chat.completions.create', return_value=mock_response):
         response = await openai_llm.generate_response("test prompt")
         assert isinstance(response, str)
         assert "UNDERSTANDING:" in response
@@ -41,19 +30,10 @@ async def test_openai_response_format(openai_llm):
 @pytest.mark.asyncio
 async def test_anthropic_response_format(anthropic_llm):
     """Test Anthropic response formatting."""
-    mock_response = AsyncMock()
-    mock_response.content = [
-        AsyncMock(
-            text="""
-            UNDERSTANDING: Test understanding
-            CONSTRAINTS: Test constraints
-            INITIAL_POSITION: Test position
-            CONFIDENCE: 0.8 Test confidence explanation
-            """
-        )
-    ]
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock(text="Test response")]
     
-    with patch('anthropic.AsyncAnthropic.messages.create', return_value=mock_response):
+    with patch('anthropic.Anthropic.messages.create', return_value=mock_response):
         response = await anthropic_llm.generate_response("test prompt")
         assert isinstance(response, str)
         assert "UNDERSTANDING:" in response
