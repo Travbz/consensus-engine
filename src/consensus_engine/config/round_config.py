@@ -209,12 +209,13 @@ RESPONSE_FORMAT = {
     """,
     
     "SHOWDOWN": """
-    Using the agreed format, provide ONLY the solution to the original prompt:
+    Using the agreed format, provide ONLY the solution to the original prompt,
+    DO NOT DEVIATE FROM THE FORMAT:
     IMPLEMENTATION: {strict_format}
 
     No meta-discussion, no explanations.
     Focus only on answering the original question using our agreed structure.
-    CONFIDENCE: [0.0-1.0 with explanation of both solution and format confidence]
+    CONFIDENCE: [0.0-1.0 float or integer only]
     """
 }
 

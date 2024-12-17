@@ -2,7 +2,6 @@
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from click.testing import CliRunner
-from gradio.testing_utils import GradioTestClient
 import tempfile
 import os
 from consensus_engine.cli import main as cli_main

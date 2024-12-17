@@ -17,7 +17,7 @@ from .config.settings import CONSENSUS_SETTINGS
 from .config.round_config import ROUND_CONFIGS, RESPONSE_FORMAT, ROUND_SEQUENCE
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
 
 class ConsensusEngine:
     def __init__(self, llms: List[BaseLLM], db_session: Session):

@@ -34,13 +34,13 @@ MODEL_CONFIGS = {
 # Consensus Settings
 CONSENSUS_SETTINGS = {
     "max_iterations": 4,
-    "consensus_threshold": 0.55,
+    "consensus_threshold": 0.70,
     "min_models": 2,
     "max_models": 5,
 }
 
 # Logging Settings
-LOG_LEVEL = os.getenv("CONSENSUS_ENGINE_LOG_LEVEL", "INFO")
+LOG_LEVEL = os.getenv("CONSENSUS_ENGINE_LOG_LEVEL", "WARNING")
 LOG_FORMAT = '%(message)s'
 DETAILED_LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
@@ -73,4 +73,4 @@ LOG_LEVEL_MAP = {
     "CRITICAL": logging.CRITICAL
 }
 
-LOG_LEVEL_NUM = LOG_LEVEL_MAP.get(LOG_LEVEL.upper(), logging.INFO)
+LOG_LEVEL_NUM = LOG_LEVEL_MAP.get(LOG_LEVEL.upper(), logging.WARNING)
