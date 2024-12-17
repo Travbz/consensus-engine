@@ -26,9 +26,19 @@ class ConsensusEngine:
         self.consensus_threshold = CONSENSUS_SETTINGS["consensus_threshold"]
 
     def _setup_nltk(self) -> bool:
-        """Set up NLTK resources."""
+        """Set up NLTK resources.
+        
+        Downloads and configures required NLTK components for text analysis:
+        - Creates a dedicated directory for NLTK data in project's data folder
+        - Downloads 'punkt' for sentence tokenization if not present
+        - Downloads 'stopwords' for filtering common words if not present
+        
+        Returns:
+            bool: True if setup successful, False if any errors occurred
+        """
         try:
-            nltk_data_dir = os.path.join(os.path.expanduser("~"), "nltk_data")
+            # Create data directory within project instead of home folder
+            nltk_data_dir = os.path.join(os.path.dirname(__file__), "..", "data", "nltk_data")
             os.makedirs(nltk_data_dir, exist_ok=True)
             
             for resource in ['punkt', 'stopwords']:
