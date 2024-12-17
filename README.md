@@ -19,7 +19,6 @@ A sophisticated tool for orchestrating structured discussions between multiple L
 - **Robust Discussion Management**:
   - Confidence scoring
   - Semantic similarity analysis
-  - Evidence validation
   - Structured response formats
 
 - **Multiple Interfaces**:
@@ -264,9 +263,9 @@ If you use Consensus Engine in your research, please cite:
 ```bibtex
 @software{consensus_engine,
   title = {Consensus Engine},
-  author = {Your Name},
+  author = {Travis Bridle},
   year = {2024},
-  url = {https://github.com/yourusername/consensus-engine}
+  url = {https://github.com/Travbz/consensus-engine}
 }
 ```
 
@@ -274,7 +273,10 @@ If you use Consensus Engine in your research, please cite:
 
 - Issues: Use GitHub Issues
 - Questions: Start a GitHub Discussion
+
 - Security concerns: See SECURITY.md
 
 
 - Test query: `Using python write a script that returns the days weather forecast using the openweathermap api?`
+- Security concerns dial 911
+
