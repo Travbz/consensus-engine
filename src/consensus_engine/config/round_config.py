@@ -138,35 +138,61 @@ RESPONSE_FORMAT = {
     CONFIDENCE: [0.0-1.0 score + why]
     """,
     
-    "FLOP": """
-    Format your response:
-    SHARED_GROUND: [Common understanding]
-    DIFFERENCES: [Areas to resolve]
-    EVIDENCE: [Supporting information]
-    UPDATED_POSITION: [Current stance]
-    CONFIDENCE: [0.0-1.0 score + justification]
+    "FLOP" : """
+    1. First, review others' initial responses and propose a solution format:
+
+    FORMAT_PROPOSAL:
+    [Propose 2-3 key sections that any solution should include]
+    [Explain why these sections are important]
+
+    INITIAL_SOLUTION:
+    [Present your initial solution using your proposed format]
+
+    RATIONALE:
+    [Explain why your format would work well for this problem]
+
+    CONFIDENCE: [0.0-1.0 with explanation]
     """,
     
     "TURN": """
-    Format your response:
-    PROGRESS: [Consensus development]
-    ALIGNMENTS: [Agreement areas]
-    RESOLUTION: [Difference handling]
-    POSITION: [Updated stance]
-    CONFIDENCE: [0.0-1.0 score + reasoning]
+    Review the format proposals from the FLOP round.
+
+    FORMAT_AGREEMENT:
+    [State which parts of proposed formats you agree with]
+    [Suggest specific refinements needed]
+
+    REFINED_SOLUTION:
+    [Present your solution using the most commonly agreed sections]
+    [Adapt your previous response to match common structure]
+
+    FORMAT_IMPROVEMENTS:
+    [Suggest any final format adjustments needed]
+
+    CONFIDENCE: [0.0-1.0 with explanation]
     """,
     
     "RIVER": """
-    Format your response:
-    SYNTHESIS: [Combined position]
-    IMPLEMENTATION: [Solution details]
-    REMAINING_ISSUES: [Final concerns]
-    CONFIDENCE: [0.0-1.0 score + rationale]
+    Based on previous format discussions, we will use this structure:
+    IMPLEMENTATION: {agreed_format}
+
+    Present your solution using EXACTLY this format, no additions or modifications.
+    Include ONLY the sections listed above.
+
+    If you have concerns about the format, you must still use it exactly as specified.
+    You can note format concerns in your confidence score explanation.
+
+    Lock in on the agreed format and solution, do not deviate at all
+
+    CONFIDENCE: [0.0-1.0 with explanation of both solution and format confidence]
     """,
     
     "SHOWDOWN": """
-    Format your response:
-    IMPLEMENTATION: [Full details/code]
+    Using the agreed format, provide ONLY the solution to the original prompt:
+    IMPLEMENTATION: {strict_format}
+
+    No meta-discussion, no explanations.
+    Focus only on answering the original question using our agreed structure.
+    CONFIDENCE: [0.0-1.0 with explanation of both solution and format confidence]
     """
 }
 
