@@ -17,7 +17,7 @@ from .database.models import Base, Discussion, DiscussionRound
 from .config.round_config import ROUND_SEQUENCE, ROUND_CONFIGS
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.WARNING)
 
 def get_db_session():
     """Initialize and return a database session."""
@@ -251,7 +251,7 @@ class GradioInterface:
                         clear_btn = gr.Button("Clear", variant="secondary")
 
             output_box = gr.Textbox(
-                label="Discussion Progress",
+                label="Conference Room",
                 lines=25,
                 show_copy_button=True,
                 interactive=False

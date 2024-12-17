@@ -6,10 +6,10 @@ def validate_response_format(response: Dict[str, Any], round_type: RoundType) ->
     """Validate response format for a given round."""
     required_fields = {
         RoundType.PRE_FLOP: ['UNDERSTANDING', 'CONSTRAINTS', 'INITIAL_POSITION', 'CONFIDENCE'],
-        RoundType.FLOP: ['AGREEMENTS', 'DIFFERENCES', 'EVIDENCE', 'POSITION', 'CONFIDENCE'],
-        RoundType.TURN: ['EVIDENCE_ANALYSIS', 'POSITION_UPDATE', 'COMPROMISE_AREAS', 'CONFIDENCE'],
-        RoundType.RIVER: ['SYNTHESIS', 'RESOLUTION', 'REMAINING_ISSUES', 'CONFIDENCE'],
-        RoundType.SHOWDOWN: ['FINAL_POSITION', 'IMPLEMENTATION', 'CONFIDENCE', 'DISSENTING_VIEWS']
+        RoundType.FLOP: ['FORMAT_PROPOSAL', 'INITIAL_SOLUTION', 'RATIONALE', 'CONFIDENCE'],
+        RoundType.TURN: ['FORMAT_AGREEMENT', 'REFINED_SOLUTION', 'FORMAT_IMPROVEMENTS', 'CONFIDENCE'],
+        RoundType.RIVER: ['IMPLEMENTATION', 'CONFIDENCE'],
+        RoundType.SHOWDOWN: ['IMPLEMENTATION', 'CONFIDENCE']
     }
     
     return all(field in response for field in required_fields[round_type])

@@ -14,9 +14,10 @@ from difflib import SequenceMatcher
 from .models.base import BaseLLM
 from .database.models import Discussion, DiscussionRound, LLMResponse
 from .config.settings import CONSENSUS_SETTINGS
-from .config.round_config import ROUND_CONFIGS, ROUND_PROMPTS, ROUND_SEQUENCE
+from .config.round_config import ROUND_CONFIGS, RESPONSE_FORMAT, ROUND_SEQUENCE
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 class ConsensusEngine:
     def __init__(self, llms: List[BaseLLM], db_session: Session):
@@ -97,6 +98,144 @@ class ConsensusEngine:
             logger.warning(f"Error extracting confidence: {e}")
         return 0.0
 
+    def _check_consensus(self, responses: Dict[str, Dict[str, Any]], round_type: str) -> Dict[str, Any]:
+        """Enhanced consensus checking with detailed feedback."""
+        # Get responses and confidence scores
+        texts = [data['response'] for data in responses.values()]
+        confidences = [data['confidence'] for data in responses.values()]
+        
+        # Initialize metrics
+        metrics = {
+            'similarity': 0.0,
+            'avg_confidence': 0.0,
+            'key_differences': [],
+            'alignment_areas': [],
+            'remaining_issues': [],
+            'key_alignments': []
+        }
+        
+        # Calculate base similarity
+        metrics['similarity'] = self._calculate_similarity({str(i): text for i, text in enumerate(texts)})
+        metrics['avg_confidence'] = sum(confidences) / len(confidences)
+        
+        # Analyze responses for specific content types
+        has_code = any("```" in text for text in texts)
+        has_evidence = any("EVIDENCE:" in text for text in texts)
+        
+        if has_code:
+            code_blocks = [self._extract_code_blocks(text) for text in texts]
+            if all(code_blocks):
+                code_similarity = self._calculate_code_similarity(code_blocks)
+                metrics['similarity'] = (metrics['similarity'] + code_similarity) / 2
+                
+                # Compare code structure
+                metrics['key_differences'].extend(self._analyze_code_differences(code_blocks))
+                metrics['alignment_areas'].extend(self._analyze_code_alignments(code_blocks))
+        
+        if has_evidence:
+            evidence_similarity = self._compare_evidence(texts)
+            metrics['similarity'] = (metrics['similarity'] + evidence_similarity) / 2
+            
+            # Analyze evidence usage
+            metrics['key_alignments'].extend(self._analyze_shared_evidence(texts))
+            metrics['key_differences'].extend(self._analyze_evidence_differences(texts))
+        
+        # Get required thresholds
+        required_confidence = ROUND_CONFIGS[round_type]["required_confidence"]
+        
+        # Determine consensus
+        consensus_reached = (metrics['similarity'] >= self.consensus_threshold and 
+                            metrics['avg_confidence'] >= required_confidence)
+        
+        # Add remaining issues if not at consensus
+        if not consensus_reached:
+            metrics['remaining_issues'] = self._identify_remaining_issues(
+                texts, metrics['similarity'], self.consensus_threshold
+            )
+        
+        return {
+            'consensus_reached': consensus_reached,
+            'metrics': metrics
+        }
+
+    def _analyze_code_differences(self, code_blocks: List[List[str]]) -> List[str]:
+        """Analyze key differences between code implementations."""
+        differences = []
+        
+        if not all(code_blocks):
+            return ["Incomplete code implementation"]
+        
+        # Compare function signatures
+        signatures = [self._extract_signatures(code) for code in code_blocks[0]]
+        if len(set(signatures)) > 1:
+            differences.append("Different function signatures")
+        
+        # Compare error handling
+        error_patterns = [self._analyze_error_handling(code) for code in code_blocks[0]]
+        if len(set(error_patterns)) > 1:
+            differences.append("Inconsistent error handling")
+        
+        # Compare variable naming
+        var_patterns = [self._extract_variable_patterns(code) for code in code_blocks[0]]
+        if len(set(var_patterns)) > 1:
+            differences.append("Different variable naming patterns")
+        
+        return differences
+
+    def _analyze_code_alignments(self, code_blocks: List[List[str]]) -> List[str]:
+        """Analyze areas where code implementations align."""
+        alignments = []
+        
+        if not all(code_blocks):
+            return []
+        
+        # Check for shared patterns
+        if self._has_shared_structure(code_blocks):
+            alignments.append("Consistent code structure")
+        
+        if self._has_shared_error_handling(code_blocks):
+            alignments.append("Consistent error handling")
+        
+        if self._has_shared_naming(code_blocks):
+            alignments.append("Consistent variable naming")
+        
+        return alignments
+
+    def _identify_remaining_issues(self, texts: List[str], current_similarity: float, 
+                                required_similarity: float) -> List[str]:
+        """Identify specific issues preventing consensus."""
+        issues = []
+        
+        # Structure differences
+        if self._has_structural_differences(texts):
+            issues.append("Response structure not aligned")
+        
+        # Terminology differences
+        term_similarity = self._calculate_terminology_similarity(texts)
+        if term_similarity < 0.8:
+            issues.append("Using different terminology")
+        
+        # Format differences
+        if self._has_format_differences(texts):
+            issues.append("Output format not consistent")
+        
+        return issues
+
+    def _update_round_guidance(self, round_type: str, metrics: Dict[str, Any]) -> str:
+        """Generate dynamic guidance based on current consensus metrics."""
+        template = ROUND_CONFIGS[round_type]["consensus_guidance"]
+        
+        # Format guidance with current metrics
+        return template.format(
+            similarity=f"{metrics['similarity']:.2f}",
+            consensus_threshold=f"{self.consensus_threshold:.2f}",
+            avg_confidence=f"{metrics['avg_confidence']:.2f}",
+            key_differences=", ".join(metrics['key_differences']),
+            alignment_areas=", ".join(metrics['alignment_areas']),
+            remaining_issues=", ".join(metrics['remaining_issues']),
+            key_alignments=", ".join(metrics['key_alignments'])
+        )
+
     async def discuss(
         self,
         prompt: str,
@@ -141,7 +280,7 @@ class ConsensusEngine:
                             full_prompt += "Previous responses:\n"
                             for name, resp in previous_responses.items():
                                 full_prompt += f"\n{name}: {resp}\n"
-                        full_prompt += f"\n{ROUND_PROMPTS[round_type]}"
+                        full_prompt += f"\n{RESPONSE_FORMAT[round_type]}"
 
                         response = await llm.generate_response(full_prompt)
                         confidence = self._extract_confidence(response)

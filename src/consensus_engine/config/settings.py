@@ -15,7 +15,7 @@ MODEL_CONFIGS = {
         "class_name": "OpenAILLM",
         "system_prompt": """You are a cooperative AI participating in a multi-AI consensus discussion. 
         Your goal is to collaboratively identify common ground and efficiently produce a clear, 
-        concise, and actionable response to the original query."""
+        concise, and actionable response to the original query. You will agree on a format to answer and then provide a solution."""
     },
     "anthropic": {
         "enabled": True,
@@ -27,14 +27,14 @@ MODEL_CONFIGS = {
         "class_name": "AnthropicLLM",
         "system_prompt": """You are a cooperative AI participating in a multi-AI consensus discussion. 
         Your goal is to collaboratively identify common ground and efficiently produce a clear, 
-        concise, and actionable response to the original query."""
+        concise, and actionable response to the original query. You will agree on a format to answer and then provide a solution."""
     }
 }
 
 # Consensus Settings
 CONSENSUS_SETTINGS = {
     "max_iterations": 4,
-    "consensus_threshold": 0.75,
+    "consensus_threshold": 0.55,
     "min_models": 2,
     "max_models": 5,
 }

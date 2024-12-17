@@ -53,7 +53,7 @@ async def run_discussion(prompt: str, engine: ConsensusEngine) -> None:
     """Run a discussion with the round-based consensus engine."""
     console.print("\n[bold blue]Starting consensus discussion...[/bold blue]")
     
-    async def display_progress(msg: str):
+    def display_progress(msg: str):
         console.print(msg)
     
     try:

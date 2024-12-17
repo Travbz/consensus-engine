@@ -273,4 +273,10 @@ If you use Consensus Engine in your research, please cite:
 
 - Issues: Use GitHub Issues
 - Questions: Start a GitHub Discussion
+
+- Security concerns: See SECURITY.md
+
+
+- Test query: `Using python write a script that returns the days weather forecast using the openweathermap api?`
 - Security concerns dial 911
+
