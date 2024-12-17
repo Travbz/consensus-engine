@@ -17,6 +17,7 @@ from .web import GradioInterface, find_available_port
 import logging
 
 logging.basicConfig(level=LOG_LEVEL_NUM)
+logger = logging.getLogger(__name__)
 console = Console()
 
 def get_db_session():
@@ -98,7 +99,7 @@ async def run_discussion(prompt: str, engine: ConsensusEngine) -> None:
 def main(web, cli, port, host, list_mode, view, debug, load):
     """Consensus Engine - Orchestrate discussions between multiple LLMs."""
     if debug:
-        logging.getLogger().setLevel(logging.DEBUG)
+        os.environ["CONSENSUS_ENGINE_LOG_LEVEL"] = "DEBUG"
 
     db_session = get_db_session()
 

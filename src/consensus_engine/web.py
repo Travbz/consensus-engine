@@ -15,9 +15,10 @@ from .models.openai import OpenAILLM
 from .models.anthropic import AnthropicLLM
 from .database.models import Base, Discussion, DiscussionRound
 from .config.round_config import ROUND_SEQUENCE, ROUND_CONFIGS
+from .config.settings import LOG_LEVEL_NUM
 
+logging.basicConfig(level=LOG_LEVEL_NUM)
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.WARNING)
 
 def get_db_session():
     """Initialize and return a database session."""
@@ -141,16 +142,18 @@ class GradioInterface:
                     current_output.append("=" * 50)
                     
                 elif any(round_type in msg for round_type in ROUND_SEQUENCE):
-                    round_type = next(rt for rt in ROUND_SEQUENCE if rt in msg)
-                    config = ROUND_CONFIGS[round_type]
-                    current_output.append(f"\n\n🎲 Round: {round_type}")
-                    current_output.append(f"Stage: {config['name']}")
-                    current_output.append(f"Target confidence: {config['required_confidence']:.2f}")
-                    current_output.append("-" * 50)
+                    if "Starting" in msg:
+                        round_type = next(rt for rt in ROUND_SEQUENCE if rt in msg)
+                        config = ROUND_CONFIGS[round_type]
+                        current_output.append(f"\n\n🎲 Round: {round_type}")
+                        current_output.append(f"Stage: {config['name']}")
+                        current_output.append(f"Target confidence: {config['required_confidence']:.2f}")
+                        current_output.append("-" * 50)
+                        current_output.append("\n[Round Progress]")
                     
                 elif "Getting" in msg and "'s response" in msg:
                     llm_name = msg.split("Getting")[1].split("'s")[0].strip()
-                    current_output.append(f"\n> {llm_name} is thinking... 🤔")
+                    current_output.append(f"  > {llm_name} is thinking... 🤔")
                     
                 elif "response\n" in msg and "confidence:" in msg:
                     parts = msg.split("response\n")
@@ -158,14 +161,20 @@ class GradioInterface:
                     response_content = parts[1].split("\nconfidence:")[0].strip()
                     confidence = float(parts[1].split("confidence:")[1].strip())
                     
-                    current_output.append(f"> {llm_name} responded:")
-                    current_output.append("-" * 30)
-                    current_output.append(response_content)
-                    current_output.append("-" * 30)
-                    current_output.append(f"Confidence: {confidence:.2f} ✓\n")
-                    
-                elif "Round" in msg and "results:" in msg:
-                    current_output.append(msg)
+                    current_output.append(f"  > {llm_name}:")
+                    current_output.append("  " + "-" * 28)
+                    indented_response = "\n".join("    " + line for line in response_content.split("\n"))
+                    current_output.append(indented_response)
+                    current_output.append("  " + "-" * 28)
+                    current_output.append(f"  Confidence: {confidence:.2f} ✓\n")
+
+                elif "Round" in msg and "Summary" in msg:
+                    current_output.append("\n[Round Summary]")
+                    summary_lines = msg.split("\n")
+                    for line in summary_lines:
+                        if line.strip():
+                            current_output.append(f"  {line.strip()}")
+                    current_output.append("")
                 else:
                     current_output.append(msg)
 
