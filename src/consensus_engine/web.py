@@ -251,7 +251,7 @@ class GradioInterface:
                         clear_btn = gr.Button("Clear", variant="secondary")
 
             output_box = gr.Textbox(
-                label="Discussion Progress",
+                label="Conference Room",
                 lines=25,
                 show_copy_button=True,
                 interactive=False
