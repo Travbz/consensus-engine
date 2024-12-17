@@ -29,17 +29,21 @@ ROUND_CONFIGS = {
             "evidence_required": False
         },
         "consensus_guidance": """
-        In this round:
-        1. Focus on shared understanding and terminology
-        2. Note areas of agreement and disagreement
-        3. Current similarity score: {similarity}
-        4. Average confidence: {avg_confidence}
-        5. Consensus requires {consensus_threshold} similarity
+        Expected format sections:
+        - UNDERSTANDING
+        - CONSTRAINTS
+        - INITIAL_POSITION
+        - CONFIDENCE
+
+        Current metrics:
+        1. Current similarity score: {similarity}
+        2. Average confidence: {avg_confidence}
+        3. Consensus requires {consensus_threshold} similarity
         
-        To increase consensus likelihood:
-        - Use consistent terminology
-        - Frame the problem similarly to others
-        - Build on shared understanding
+        To increase consensus:
+        - Use consistent problem interpretation
+        - Identify same key constraints
+        - Align initial positions where possible
         """
     },
     "FLOP": {
@@ -51,16 +55,22 @@ ROUND_CONFIGS = {
             "evidence_required": True
         },
         "consensus_guidance": """
+        Expected format sections:
+        - FORMAT_PROPOSAL
+        - INITIAL_SOLUTION
+        - RATIONALE
+        - CONFIDENCE
+
         Progress metrics:
         1. Current similarity: {similarity}
         2. Required similarity: {consensus_threshold}
         3. Group confidence: {avg_confidence}
         4. Main differences: {key_differences}
         
-        To align positions:
-        - Reference shared evidence
-        - Address key differences
-        - Use similar structure and terminology
+        Focus on:
+        - Proposing clear solution formats
+        - Building on others' format suggestions
+        - Providing structured initial solutions
         """
     },
     "TURN": {
@@ -72,6 +82,12 @@ ROUND_CONFIGS = {
             "evidence_required": True
         },
         "consensus_guidance": """
+        Expected format sections:
+        - FORMAT_AGREEMENT
+        - REFINED_SOLUTION
+        - FORMAT_IMPROVEMENTS
+        - CONFIDENCE
+
         Current metrics:
         1. Similarity score: {similarity}
         2. Consensus target: {consensus_threshold}
@@ -79,9 +95,9 @@ ROUND_CONFIGS = {
         4. Outstanding issues: {remaining_issues}
         
         Focus areas:
-        - Resolve remaining differences
-        - Strengthen shared positions
-        - Match successful patterns
+        - Align on common format elements
+        - Adapt solutions to shared structure
+        - Propose final format refinements
         """
     },
     "RIVER": {
@@ -93,17 +109,20 @@ ROUND_CONFIGS = {
             "evidence_required": True
         },
         "consensus_guidance": """
+        Expected format:
+        IMPLEMENTATION: {agreed_format}
+
         Consensus status:
         1. Current similarity: {similarity}
         2. Target threshold: {consensus_threshold}
         3. Group confidence: {avg_confidence}
         4. Key alignments: {key_alignments}
         
-        For code solutions:
-        - Match structure and patterns
-        - Use consistent variable names
-        - Follow same error handling
-        - Aim for identical output format
+        Requirements:
+        - Use EXACTLY the agreed format
+        - No format modifications allowed
+        - Include all required sections
+        - Note format concerns in confidence explanation
         """
     },
     "SHOWDOWN": {
@@ -115,16 +134,19 @@ ROUND_CONFIGS = {
             "evidence_required": True
         },
         "consensus_guidance": """
+        Required format:
+        IMPLEMENTATION: {strict_format}
+
         Final metrics:
         1. Current similarity: {similarity}
         2. Required for consensus: {consensus_threshold}
         3. Collective confidence: {avg_confidence}
         
-        For consensus approval:
-        - Responses must be {consensus_threshold} similar
-        - Code solutions must be functionally identical
-        - Using same terminology and structure
-        - Sharing core evidence and reasoning
+        Final requirements:
+        - Provide ONLY the solution
+        - Use exact agreed format
+        - No meta-discussion or explanations
+        - Focus on original question
         """
     }
 }
