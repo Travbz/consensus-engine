@@ -17,7 +17,6 @@ from .config.settings import CONSENSUS_SETTINGS
 from .config.round_config import ROUND_CONFIGS, RESPONSE_FORMAT, ROUND_SEQUENCE
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 class ConsensusEngine:
     def __init__(self, llms: List[BaseLLM], db_session: Session):
@@ -27,9 +26,19 @@ class ConsensusEngine:
         self.consensus_threshold = CONSENSUS_SETTINGS["consensus_threshold"]
 
     def _setup_nltk(self) -> bool:
-        """Set up NLTK resources."""
+        """Set up NLTK resources.
+        
+        Downloads and configures required NLTK components for text analysis:
+        - Creates a dedicated directory for NLTK data in project's data folder
+        - Downloads 'punkt' for sentence tokenization if not present
+        - Downloads 'stopwords' for filtering common words if not present
+        
+        Returns:
+            bool: True if setup successful, False if any errors occurred
+        """
         try:
-            nltk_data_dir = os.path.join(os.path.expanduser("~"), "nltk_data")
+            # Create data directory within project instead of home folder
+            nltk_data_dir = os.path.join(os.path.dirname(__file__), "..", "data", "nltk_data")
             os.makedirs(nltk_data_dir, exist_ok=True)
             
             for resource in ['punkt', 'stopwords']:
@@ -49,12 +58,26 @@ class ConsensusEngine:
             return 0.0
 
         def extract_final_position(text: str) -> str:
-            """Extract just the FINAL_POSITION section for comparison."""
+            """Extract the solution section for comparison based on round format.
+            Falls back to full text if no matching section found.
+            
+            NOTE: If RESPONSE_FORMAT in round_config.py is updated, this function must be updated
+            to match the new section headers and delimiters."""
             try:
-                if "FINAL_POSITION:" in text:
-                    position = text.split("FINAL_POSITION:")[1].split("IMPLEMENTATION:")[0].strip()
+                # Check for each possible solution section in order of rounds
+                if "INITIAL_POSITION:" in text:
+                    position = text.split("INITIAL_POSITION:")[1].split("CONFIDENCE:")[0].strip()
                     return position
-                return text  # Fall back to full text if section not found
+                elif "INITIAL_SOLUTION:" in text:
+                    position = text.split("INITIAL_SOLUTION:")[1].split("RATIONALE:")[0].strip()
+                    return position
+                elif "REFINED_SOLUTION:" in text:
+                    position = text.split("REFINED_SOLUTION:")[1].split("FORMAT_IMPROVEMENTS:")[0].strip()
+                    return position
+                elif "IMPLEMENTATION:" in text:
+                    position = text.split("IMPLEMENTATION:")[1].split("CONFIDENCE:")[0].strip()
+                    return position
+                return text  # Fall back to full text if no sections found
             except Exception:
                 return text
 
@@ -88,6 +111,8 @@ class ConsensusEngine:
                 return len(common_words) / total_words
 
     def _extract_confidence(self, text: str) -> float:
+        """Extract confidence score from response.
+        NOTE: Depends on CONFIDENCE section in RESPONSE_FORMAT from round_config.py"""
         try:
             import re
             confidence_line = re.search(r"CONFIDENCE:\s*(\d*\.?\d+)", text, re.IGNORECASE)
@@ -159,7 +184,8 @@ class ConsensusEngine:
         }
 
     def _analyze_code_differences(self, code_blocks: List[List[str]]) -> List[str]:
-        """Analyze key differences between code implementations."""
+        """Analyze key differences between code implementations.
+        NOTE: Depends on code block format (```) in responses from RESPONSE_FORMAT"""
         differences = []
         
         if not all(code_blocks):

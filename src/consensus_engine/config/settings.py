@@ -34,7 +34,7 @@ MODEL_CONFIGS = {
 # Consensus Settings
 CONSENSUS_SETTINGS = {
     "max_iterations": 4,
-    "consensus_threshold": 0.55,
+    "consensus_threshold": 0.70,
     "min_models": 2,
     "max_models": 5,
 }

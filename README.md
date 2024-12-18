@@ -135,82 +135,122 @@ pytest tests/test_interfaces.py  # Interface tests
 
 See `/tests/README.md` for detailed testing documentation.
 
-## Project Structure
 
-```
-consensus-engine/
-├── src/
-│   └── consensus_engine/
-│       ├── config/          # Configuration files
-│       ├── models/          # LLM implementations
-│       ├── database/        # Database models
-│       └── protocols/       # Consensus protocols
-├── tests/                   # Test suite
-└── examples/                # Usage examples
-```
 
-## Round-Based Discussion Flow
+## Overview
 
-1. **PRE_FLOP**:
-   - Initial problem understanding
+The Consensus Engine is a sophisticated system designed to orchestrate structured discussions between multiple Large Language Models (LLMs) to reach consensus through a round-based deliberation process. This document explains how each component works and interacts within the system.
+
+## Core Components
+
+### 1. Engine (`engine.py`)
+The main orchestrator of the consensus process. It:
+- Manages the flow of discussion rounds
+- Tracks and evaluates consensus through similarity metrics
+- Coordinates between different LLMs
+- Handles database persistence
+- Provides progress updates
+
+Key features:
+- Semantic similarity calculation using TF-IDF and cosine similarity
+- Confidence score extraction and validation
+- Consensus threshold enforcement (default 0.75)
+- Progress tracking and callback system
+
+### 2. Models (`models/`)
+The Models layer handles interactions with different LLM providers:
+
+- `base.py`: Abstract base class defining the LLM interface
+- `openai.py`: OpenAI (GPT-4) implementation
+- `anthropic.py`: Anthropic (Claude) implementation
+- `loader.py`: Dynamic model loading and configuration
+
+Each model implementation:
+- Manages API connections
+- Handles response generation
+- Provides consistent interface for the engine
+- Implements proper error handling
+
+### 3. Round System (`config/round_config.py`)
+Implements a poker-style discussion format with five rounds:
+
+1. **PRE_FLOP**: Initial Understanding
+   - Problem interpretation
    - Constraint identification
-   - Preliminary position establishment
+   - Initial position establishment
+   - No confidence requirement (0.0)
 
-2. **FLOP**:
+2. **FLOP**: Opening Analysis
    - Evidence presentation
-   - Initial agreement areas
-   - Key differences identification
+   - Initial agreements identified
+   - Key differences noted
+   - Minimum confidence: 0.5
 
-3. **TURN**:
+3. **TURN**: Position Refinement
    - Evidence analysis
-   - Position refinement
+   - Position updates
    - Compromise exploration
+   - Minimum confidence: 0.6
 
-4. **RIVER**:
+4. **RIVER**: Consensus Building
    - Final position synthesis
-   - Resolution of differences
+   - Difference resolution
    - Consensus building
+   - Minimum confidence: 0.7
 
-5. **SHOWDOWN**:
-   - Final position statement
+5. **SHOWDOWN**: Final Resolution
    - Implementation details
-   - Any remaining disagreements
+   - Final position statement
+   - Minimum confidence: 0.75
 
-## Contributing
+### 4. Database (`database/`)
+SQLAlchemy-based persistence layer:
 
-1. Fork the repository
-2. Create a feature branch:
-```bash
-git checkout -b feature/your-feature-name
-```
+- `Discussion`: Tracks complete discussions
+- `DiscussionRound`: Individual round information
+- `LLMResponse`: Individual LLM responses
+- SQLite by default with support for other databases
 
-3. Make your changes and commit:
-```bash
-git commit -m "Add your feature description"
-```
+### 5. Interfaces
 
-4. Push to your fork:
-```bash
-git push origin feature/your-feature-name
-```
+#### CLI (`cli.py`)
+Command-line interface supporting:
+- Interactive discussions
+- Discussion history viewing
+- Debug mode
+- Configuration options
 
-5. Create a Pull Request
+#### Web Interface (`web.py`)
+Gradio-based web interface providing:
+- Discussion visualization
+- Discussion history
+- Export capabilities
 
-### Development Setup
+## Configuration
 
-1. Install development dependencies:
-```bash
-pip install -e ".[dev]"
-```
+Major configuration areas:
 
-2. Set up pre-commit hooks:
-```bash
-pre-commit install
-```
+1. Model Settings (`config/settings.py`)
+   - API keys and endpoints
+   - Model parameters
+   - Temperature settings
+   - Token limits
+
+2. Round Settings (`config/round_config.py`)
+   - Round sequence
+   - Confidence requirements
+   - Time limits
+   - Response formats
+
+3. Consensus Settings
+   - Similarity thresholds
+   - Minimum model requirements
+   - Maximum iterations
+   - Success criteria
 
 ## Response Format
 
-LLMs are prompted to provide structured responses:
+LLMs must provide structured responses following this format(Varies by round):
 
 ```
 UNDERSTANDING: [Problem interpretation]
@@ -220,42 +260,32 @@ CONFIDENCE: [0.0-1.0 with justification]
 EVIDENCE: [Supporting information]
 ```
 
-## Troubleshooting
+## Error Handling
 
-### Common Issues
+The system implements robust error handling:
+- API failure recovery
+- Response validation
+- Format enforcement
+- Round progression safety checks
+- Database transaction management
 
-1. **API Key Errors**:
-   - Verify environment variables are set
-   - Check API key validity
-   - Ensure sufficient API credits
+## Testing
 
-2. **NLTK Resource Errors**:
-   - The package automatically downloads required NLTK data
-   - Manual download: `python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords')"`
+Tests covering:
+- Core engine functionality
+- Model implementations
+- Round management
+- Interface behavior
+- Integration scenarios
 
-3. **Port Conflicts**:
-   - Default port (7860) in use: Use `--port` to specify different port
-   - Permission denied: Try a port number > 1024
+## Performance and Scalability
 
-### Debug Mode
-
-Enable debug logging:
-```bash
-export CONSENSUS_ENGINE_LOG_LEVEL=DEBUG
-consensus-engine --debug
-```
-
-## License
-
-MIT License - see LICENSE file for details
-
-## Documentation
-
-- `config/settings.py`: Configuration options
-- `docs/`: Detailed documentation (coming soon)
-- `examples/`: Usage examples
-- `tests/README.md`: Testing documentation
-
+The system is designed for:
+- Asynchronous operation
+- Multiple concurrent discussions
+- Dynamic model loading
+- Efficient similarity calculations
+- Persistent storage
 ## Citing
 
 If you use Consensus Engine in your research, please cite:
@@ -268,15 +298,3 @@ If you use Consensus Engine in your research, please cite:
   url = {https://github.com/Travbz/consensus-engine}
 }
 ```
-
-## Contact
-
-- Issues: Use GitHub Issues
-- Questions: Start a GitHub Discussion
-
-- Security concerns: See SECURITY.md
-
-
-- Test query: `Using python write a script that returns the days weather forecast using the openweathermap api?`
-- Security concerns dial 911
-

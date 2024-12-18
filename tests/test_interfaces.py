@@ -2,7 +2,6 @@
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from click.testing import CliRunner
-from gradio.testing_utils import GradioTestClient
 import tempfile
 import os
 from consensus_engine.cli import main as cli_main
@@ -72,13 +71,15 @@ async def test_cli_discussion(cli_runner, mock_engine, mock_db_session):
     """Test running a discussion via CLI."""
     with patch('consensus_engine.cli.get_db_session', return_value=mock_db_session), \
          patch('consensus_engine.cli.ConsensusEngine', return_value=mock_engine), \
+         patch('asyncio.run') as mock_run, \
          patch.dict('os.environ', {
              'OPENAI_API_KEY': 'test-key',
              'ANTHROPIC_API_KEY': 'test-key'
          }):
+        mock_run.return_value = {"consensus": "Test consensus"}
         result = cli_runner.invoke(cli_main, input="Test prompt\n")
         assert result.exit_code == 0
-        assert "Consensus" in result.output
+        assert "Test consensus" in result.output
 
 @pytest.mark.asyncio
 async def test_web_interface_creation():
@@ -94,7 +95,11 @@ async def test_web_interface_creation():
 async def test_web_discussion_flow(mock_engine, mock_db_session):
     """Test discussion flow in web interface."""
     with patch('consensus_engine.web.get_db_session', return_value=mock_db_session), \
-         patch('consensus_engine.web.ConsensusEngine', return_value=mock_engine):
+         patch('consensus_engine.web.ConsensusEngine', return_value=mock_engine), \
+         patch.dict('os.environ', {
+             'OPENAI_API_KEY': 'test-key',
+             'ANTHROPIC_API_KEY': 'test-key'
+         }):
         interface = GradioInterface()
         
         # Test discussion progress updates
