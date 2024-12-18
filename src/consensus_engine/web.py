@@ -317,7 +317,7 @@ class GradioInterface:
                 server_name=host,
                 debug=debug,
                 show_api=False,
-                share=False,
+                share=True,
                 inbrowser=True
             )
 

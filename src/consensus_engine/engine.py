@@ -58,12 +58,26 @@ class ConsensusEngine:
             return 0.0
 
         def extract_final_position(text: str) -> str:
-            """Extract just the FINAL_POSITION section for comparison."""
+            """Extract the solution section for comparison based on round format.
+            Falls back to full text if no matching section found.
+            
+            NOTE: If RESPONSE_FORMAT in round_config.py is updated, this function must be updated
+            to match the new section headers and delimiters."""
             try:
-                if "FINAL_POSITION:" in text:
-                    position = text.split("FINAL_POSITION:")[1].split("IMPLEMENTATION:")[0].strip()
+                # Check for each possible solution section in order of rounds
+                if "INITIAL_POSITION:" in text:
+                    position = text.split("INITIAL_POSITION:")[1].split("CONFIDENCE:")[0].strip()
                     return position
-                return text  # Fall back to full text if section not found
+                elif "INITIAL_SOLUTION:" in text:
+                    position = text.split("INITIAL_SOLUTION:")[1].split("RATIONALE:")[0].strip()
+                    return position
+                elif "REFINED_SOLUTION:" in text:
+                    position = text.split("REFINED_SOLUTION:")[1].split("FORMAT_IMPROVEMENTS:")[0].strip()
+                    return position
+                elif "IMPLEMENTATION:" in text:
+                    position = text.split("IMPLEMENTATION:")[1].split("CONFIDENCE:")[0].strip()
+                    return position
+                return text  # Fall back to full text if no sections found
             except Exception:
                 return text
 
@@ -97,6 +111,8 @@ class ConsensusEngine:
                 return len(common_words) / total_words
 
     def _extract_confidence(self, text: str) -> float:
+        """Extract confidence score from response.
+        NOTE: Depends on CONFIDENCE section in RESPONSE_FORMAT from round_config.py"""
         try:
             import re
             confidence_line = re.search(r"CONFIDENCE:\s*(\d*\.?\d+)", text, re.IGNORECASE)
@@ -168,7 +184,8 @@ class ConsensusEngine:
         }
 
     def _analyze_code_differences(self, code_blocks: List[List[str]]) -> List[str]:
-        """Analyze key differences between code implementations."""
+        """Analyze key differences between code implementations.
+        NOTE: Depends on code block format (```) in responses from RESPONSE_FORMAT"""
         differences = []
         
         if not all(code_blocks):
