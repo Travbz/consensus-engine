@@ -150,6 +150,8 @@ ROUND_CONFIGS = {
         """
     }
 }
+# NOTE: If these formats are updated, also update extract_final_position() 
+# in src/consensus_engine/engine.py to match the new section headers
 
 RESPONSE_FORMAT = {
     "PRE_FLOP": """
@@ -210,10 +212,10 @@ RESPONSE_FORMAT = {
     
     "SHOWDOWN": """
     Using the agreed format, provide ONLY the solution to the original prompt,
-    DO NOT DEVIATE FROM THE FORMAT:
+    DO NOT DEVIATE FROM THE FORMAT, DO NOT ADD ANYTHING ELSE. DEVIATING FROM THE FORMAT WILL RESULT IN A LOW CONFIDENCE SCORE AND LOSS OF THE GAME.
     IMPLEMENTATION: {strict_format}
 
-    No meta-discussion, no explanations.
+    No meta-discussion, NO EXPLANATIONS.
     Focus only on answering the original question using our agreed structure.
     CONFIDENCE: [0.0-1.0 float or integer only]
     """

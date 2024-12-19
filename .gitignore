@@ -171,3 +171,18 @@ dir.sh
 query.txt
 
 project-structure.txt
+
+
+
+# gradio
+.gradio
+.gradio*
+
+
+# pytest
+.pytest_cache
+.coverage
+
+# coverage
+.coverage
+    
