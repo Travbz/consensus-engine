@@ -30,7 +30,7 @@ jobs:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       run: |
-        # Run all tests in the tests directory
+        . .venv/bin/activate
         pytest tests/unit/ -v
     
     - name: Run integration tests
@@ -38,7 +38,7 @@ jobs:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       run: |
-        # Run integration tests separately
+        . .venv/bin/activate
         pytest tests/integration/ -v
 
     - name: Upload test results
