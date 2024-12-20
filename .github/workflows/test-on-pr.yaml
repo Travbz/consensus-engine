@@ -1,39 +1,51 @@
-name: Run Tests on Pull Requests
+name: Test on PR
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    branches: [ main ]
+  push:
+    branches: [ main ]
 
 jobs:
   test:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-
+    - uses: actions/checkout@v2
+    
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v2
       with:
-        python-version: '3.8'
-
-    - name: Install uv
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-
+        python-version: "3.11"
+    
     - name: Install dependencies
       run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
         uv venv
-        source .venv/bin/activate
-        uv pip install -U pip
-        uv pip install .
-        uv pip install pytest pytest-asyncio pytest-cov
-        uv pip install openai anthropic
-
-    - name: Run tests
+        . .venv/bin/activate
+        uv pip install pytest pytest-asyncio
+        uv pip install -e .
+    
+    - name: Run unit tests
       env:
-        OPENAI_API_KEY: sk-dummy-key-for-testing
-        ANTHROPIC_API_KEY: dummy-key-for-testing
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       run: |
-        source .venv/bin/activate
-        pytest tests --tb=short --cov=src/consensus_engine --cov-report=term-missing
+        . .venv/bin/activate
+        pytest tests/unit/ -v
+    
+    - name: Run integration tests
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      run: |
+        . .venv/bin/activate
+        pytest tests/integration/ -v
+
+    - name: Upload test results
+      if: success() || failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: |
+          pytest-results.xml
+          .coverage
