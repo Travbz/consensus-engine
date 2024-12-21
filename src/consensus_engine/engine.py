@@ -286,3 +286,28 @@ class ConsensusEngine:
             discussion.completed_at = datetime.now(UTC)
             self.db.commit()
             raise
+
+    def calculate_consensus(self, responses):
+        # ... existing code ...
+        
+        result = {
+            model: response for model, response in responses.items()
+        }
+        
+        # Add consensus key to results
+        result['consensus'] = {
+            'text': self._determine_consensus_text(responses),
+            'confidence': self._calculate_confidence(responses)
+        }
+        
+        return result
+
+    def _determine_consensus_text(self, responses):
+        # Implement consensus text determination
+        # This could be the most common response or a merged version
+        return max(responses.values(), key=lambda x: x.get('confidence', 0)).get('text', '')
+
+    def _calculate_confidence(self, responses):
+        # Calculate overall confidence score
+        confidences = [r.get('confidence', 0) for r in responses.values()]
+        return sum(confidences) / len(confidences) if confidences else 0
