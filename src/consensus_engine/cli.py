@@ -9,8 +9,7 @@ from rich.table import Table
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from .engine import ConsensusEngine
-from .models.openai import OpenAILLM
-from .models.anthropic import AnthropicLLM
+from .models.loader import ModelLoader
 from .database.models import Base, Discussion
 from .config.settings import LOG_LEVEL_NUM
 from .config.round_config import ROUND_SEQUENCE
@@ -52,17 +51,6 @@ def list_discussions(db_session):
     
     console.print(table)
 
-def get_format_sections(round_format: str) -> Dict[str, str]:
-    """Extract section labels from a round format string."""
-    sections = {}
-    for line in round_format.split('\n'):
-        line = line.strip()
-        if ':' in line and '[' in line:
-            label = line.split(':')[0].strip()
-            sections[label] = 'cyan'  # default color
-    return sections
-
-
 @click.command()
 @click.option('--web', is_flag=True, help='Launch in web interface mode')
 @click.option('--cli', is_flag=True, help='Launch in CLI mode')
@@ -72,7 +60,7 @@ def get_format_sections(round_format: str) -> Dict[str, str]:
 @click.option('--view', type=int, help='View a specific discussion by ID')
 @click.option('--debug', is_flag=True, help='Enable debug logging')
 @click.option('--file', type=click.Path(exists=True), help='Input file with prompt')
-@click.option('--load', type=int, help='Load a previous discussion by ID and continue')
+@click.option('--load', type=int, help='Load a previous discussion by ID')
 def main(web, cli, port, host, list_mode, view, debug, file, load):
     """Consensus Engine - Orchestrate discussions between multiple LLMs."""
     if debug:
@@ -135,23 +123,11 @@ def main(web, cli, port, host, list_mode, view, debug, file, load):
             cli = True
 
         if cli:
-            # Check API keys
-            openai_key = os.getenv("OPENAI_API_KEY")
-            anthropic_key = os.getenv("ANTHROPIC_API_KEY")
-            
-            if not openai_key or not anthropic_key:
-                console.print("[red]Error: Missing API keys[/red]")
-                console.print("Please set the following environment variables:")
-                console.print("  - OPENAI_API_KEY")
-                console.print("  - ANTHROPIC_API_KEY")
-                return 1
-
-            # Initialize LLMs and engine
-            llms = [
-                OpenAILLM(openai_key),
-                AnthropicLLM(anthropic_key)
-            ]
-            
+            # Initialize LLMs using ModelLoader
+            llms = ModelLoader.load_models()
+            if not ModelLoader.validate_models(llms):
+                raise click.UsageError("Error: Not enough valid models available")
+                
             engine = ConsensusEngine(llms, db_session)
             
             # Get prompt
@@ -174,7 +150,6 @@ def main(web, cli, port, host, list_mode, view, debug, file, load):
                     console.print(f"[red]Error reading file: {str(e)}[/red]")
                     return 1
             else:
-                # Get prompt
                 prompt = console.input("\n[bold green]Enter your prompt:[/bold green] ")
             
             if not prompt.strip():
@@ -203,12 +178,14 @@ def main(web, cli, port, host, list_mode, view, debug, file, load):
                 if not result:
                     raise click.ClickException("Discussion failed to produce a result")
                 return 0
+
             except Exception as e:
                 console.print(f"[red]Error: {str(e)}[/red]")
                 if debug:
                     import traceback
                     console.print(traceback.format_exc())
                 raise click.ClickException(str(e))
+
             finally:
                 if 'loop' in locals() and not loop.is_running():
                     loop.close()

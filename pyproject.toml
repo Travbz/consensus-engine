@@ -25,6 +25,7 @@ dependencies = [
     "rich>=13.0.0",
     "sqlalchemy>=2.0.0",
     "nest_asyncio>=1.6.0",
+    "google-generativeai"
 ]
 
 [project.optional-dependencies]
