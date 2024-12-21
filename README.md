@@ -1,6 +1,6 @@
 # Consensus Engine
 
-A sophisticated tool for orchestrating structured discussions between multiple Large Language Models (LLMs) to reach consensus through a round-based deliberation process.
+A sophisticated tool for orchestrating structured discussions between multiple Large Language Models (LLMs) to reach consensus through a round-based deliberation process using prompt chaining.
 
 ## Features
 
@@ -145,7 +145,7 @@ The Consensus Engine is a sophisticated system designed to orchestrate structure
 
 ### 1. Engine (`engine.py`)
 The main orchestrator of the consensus process. It:
-- Manages the flow of discussion rounds
+- Manages the flow of discussion rounds with a form of prompt chaining
 - Tracks and evaluates consensus through similarity metrics
 - Coordinates between different LLMs
 - Handles database persistence
