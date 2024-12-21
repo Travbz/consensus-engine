@@ -45,55 +45,6 @@ Response 2: "The quick brown dog"
 # Result might be 0.85 (very similar but not identical)
 ```
 
-#### Code Similarity Metrics
-When responses contain code, additional metrics are applied:
-
-1. **Structural Similarity**:
-   - Abstract Syntax Tree (AST) comparison
-   - Function signature matching
-   - Control flow analysis
-   - Example: Two functions with same parameters and return types but different variable names would have high structural similarity
-
-2. **Naming Pattern Analysis**:
-   - Variable/function name comparison
-   - Naming convention consistency
-   - Camel case vs. snake case detection
-
-3. **Logic Flow Comparison**:
-   - Control structure alignment
-   - Error handling patterns
-   - Algorithm steps matching
-
-Example:
-```python
-# These would have high similarity despite superficial differences
-def calculate_area(length, width):
-    return length * width
-
-def get_area(l, w):
-    return l * w
-```
-
-#### Evidence Overlap Analysis
-Measures how much supporting evidence is shared between responses:
-
-1. **Citation Matching**:
-   - Identifies referenced sources
-   - Compares citation overlap
-   - Weights by citation importance
-   - Example: Two responses citing the same academic paper would increase similarity
-
-2. **Fact Alignment**:
-   - Extracts key facts and statistics
-   - Compares numerical values
-   - Checks unit consistency
-   - Example: Both responses mentioning "73% improvement" would increase similarity
-
-3. **Example Comparison**:
-   - Identifies illustrative examples
-   - Compares example structures
-   - Analyzes example relevance
-
 ### Similarity Weight Implementation
 
 #### Current Implementation
